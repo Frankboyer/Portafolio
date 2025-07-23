@@ -929,7 +929,6 @@ with col_graf:
             st.plotly_chart(fig_heatmap, use_container_width=True)
     else:
         st.info("Agrega riesgos para generar el mapa de calor.")
-
   with col_graf:
     # Mapa de Calor de Riesgos (5x5)
     st.header(get_text("risk_heatmap_title"))
