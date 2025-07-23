@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Importar desde los módulos locales
+# Asegúrate de que estos archivos (data_config.py, calculations.py, plotting.py, utils.py)
+# estén en la misma carpeta que riskapp.py
 from data_config import tabla_tipo_impacto, matriz_probabilidad, matriz_impacto, factor_exposicion, factor_probabilidad, efectividad_controles, criticidad_límites, textos
 from calculations import clasificar_criticidad, calcular_criticidad, simular_montecarlo
 from plotting import create_heatmap, create_pareto_chart, plot_montecarlo_histogram, create_sensitivity_plot
@@ -14,6 +16,7 @@ from utils import reset_form_fields, format_risk_dataframe
 st.set_page_config(layout="wide", page_title="Calculadora de Riesgos", page_icon="🛡️")
 
 # --- CSS Personalizado ---
+# Aquí puedes añadir cualquier estilo CSS personalizado para tu aplicación.
 st.markdown("""
     <style>
     .stButton>button {
@@ -62,7 +65,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Inicialización de Session State ---
-# Variables de estado de la sesión para mantener la información a través de las reruns de Streamlit
+# Variables de estado de la sesión para mantener la información a través de las reruns de Streamlit.
+# Es crucial inicializar todas las claves aquí para evitar errores de acceso.
 if 'idioma' not in st.session_state:
     st.session_state.idioma = 'es'
 if 'riesgos' not in st.session_state:
@@ -76,17 +80,43 @@ if 'riesgos' not in st.session_state:
 if 'current_edit_index' not in st.session_state:
     st.session_state.current_edit_index = -1 # -1 significa que no estamos editando
 
-# Valores por defecto para reiniciar el formulario
+# --- Inicializaciones Cruciales para Campos del Formulario ---
+# Estas claves se usan para almacenar el estado de los widgets del formulario
+# y para que la función reset_form_fields() pueda limpiar los campos.
+# Se inicializan aquí para asegurar su existencia desde la primera ejecución.
+if 'risk_name_input' not in st.session_state:
+    st.session_state['risk_name_input'] = ""
+if 'risk_description_input' not in st.session_state:
+    st.session_state['risk_description_input'] = ""
+
+# Valores por defecto para selectbox y sliders (usados en la inicialización y el reseteo)
 if 'default_type_impact' not in st.session_state:
     st.session_state['default_type_impact'] = tabla_tipo_impacto['Tipo de Impacto'].iloc[0]
+if 'selected_type_impact' not in st.session_state: # Clave real del selectbox
+    st.session_state['selected_type_impact'] = st.session_state['default_type_impact']
+
 if 'default_probabilidad' not in st.session_state:
     st.session_state['default_probabilidad'] = factor_probabilidad['Clasificacion'].iloc[0]
+if 'selected_probabilidad' not in st.session_state: # Clave real del selectbox
+    st.session_state['selected_probabilidad'] = st.session_state['default_probabilidad']
+
 if 'default_exposicion' not in st.session_state:
     st.session_state['default_exposicion'] = factor_exposicion['Clasificacion'].iloc[0]
+if 'selected_exposicion' not in st.session_state: # Clave real del selectbox
+    st.session_state['selected_exposicion'] = st.session_state['default_exposicion']
+
 if 'default_impacto_numerico' not in st.session_state:
     st.session_state['default_impacto_numerico'] = 50
+if 'impacto_numerico_slider' not in st.session_state: # Clave real del slider
+    st.session_state['impacto_numerico_slider'] = st.session_state['default_impacto_numerico']
+
 if 'default_control_effectiveness' not in st.session_state:
     st.session_state['default_control_effectiveness'] = 50
+if 'control_effectiveness_slider' not in st.session_state: # Clave real del slider
+    st.session_state['control_effectiveness_slider'] = st.session_state['default_control_effectiveness']
+
+if 'deliberate_threat_checkbox' not in st.session_state:
+    st.session_state['deliberate_threat_checkbox'] = False
 
 # --- Función para obtener textos en el idioma actual ---
 def get_text(key):
@@ -120,19 +150,26 @@ st.title(get_text("app_title"))
 st.header(get_text("risk_input_form_title"))
 
 # Formulario para agregar/editar riesgos
+# clear_on_submit=False es importante para que los campos no se borren
+# automáticamente y podamos controlarlo con session_state.
 with st.form("risk_form", clear_on_submit=False):
-    # Inicializar valores del formulario para edición
+    # Lógica para determinar los valores iniciales de los campos del formulario
+    # Esto depende de si estamos editando un riesgo existente o agregando uno nuevo.
     if st.session_state.current_edit_index != -1:
+        # Modo Edición: Cargar datos del riesgo a editar
         risk_to_edit = st.session_state.riesgos.loc[st.session_state.current_edit_index]
         nombre_riesgo_default = risk_to_edit["Nombre del Riesgo"]
         descripcion_default = risk_to_edit["Descripción"]
         tipo_impacto_default = risk_to_edit["Tipo de Impacto"]
-        probabilidad_default = factor_probabilidad[factor_probabilidad['Factor'] == risk_to_edit["Probabilidad"]]['Clasificacion'].iloc[0]
-        exposicion_default = factor_exposicion[factor_exposicion['Factor'] == risk_to_edit["Exposición"]]['Clasificacion'].iloc[0]
+        # Buscar la clasificación de texto para los valores numéricos almacenados
+        probabilidad_default = factor_probabilidad[factor_probabilidad['Factor'] == risk_to_edit["Probabilidad"]]['Clasificacion'].iloc[0] if not factor_probabilidad[factor_probabilidad['Factor'] == risk_to_edit["Probabilidad"]].empty else st.session_state['default_probabilidad']
+        exposicion_default = factor_exposicion[factor_exposicion['Factor'] == risk_to_edit["Exposición"]]['Clasificacion'].iloc[0] if not factor_exposicion[factor_exposicion['Factor'] == risk_to_edit["Exposición"]].empty else st.session_state['default_exposicion']
         impacto_numerico_default = risk_to_edit["Impacto Numérico"]
         efectividad_control_default = risk_to_edit["Efectividad del Control (%)"]
         amenaza_deliberada_default = bool(risk_to_edit["Amenaza Deliberada"])
     else:
+        # Modo Nuevo Riesgo: Usar los valores de session_state (mantienen el estado del formulario)
+        # o los valores por defecto si no hay nada en session_state (primera carga o después de resetear).
         nombre_riesgo_default = st.session_state.get('risk_name_input', "")
         descripcion_default = st.session_state.get('risk_description_input', "")
         tipo_impacto_default = st.session_state.get('selected_type_impact', st.session_state['default_type_impact'])
@@ -142,6 +179,7 @@ with st.form("risk_form", clear_on_submit=False):
         efectividad_control_default = st.session_state.get('control_effectiveness_slider', st.session_state['default_control_effectiveness'])
         amenaza_deliberada_default = st.session_state.get('deliberate_threat_checkbox', False)
 
+    # Definición de los campos del formulario utilizando las claves de session_state
     col1, col2 = st.columns(2)
     with col1:
         nombre_riesgo = st.text_input(get_text("risk_name"), value=nombre_riesgo_default, key="risk_name_input")
@@ -149,25 +187,25 @@ with st.form("risk_form", clear_on_submit=False):
             get_text("risk_type_impact"),
             tabla_tipo_impacto['Tipo de Impacto'].tolist(),
             index=tabla_tipo_impacto['Tipo de Impacto'].tolist().index(tipo_impacto_default),
-            key="selected_type_impact"
+            key="selected_type_impact" # ¡Esta key es vital y se usa para el reseteo!
         )
         probabilidad = st.selectbox(
             get_text("risk_probability"),
             factor_probabilidad['Clasificacion'].tolist(),
             index=factor_probabilidad['Clasificacion'].tolist().index(probabilidad_default),
-            key="selected_probabilidad"
+            key="selected_probabilidad" # ¡Esta key es vital!
         )
         exposicion = st.selectbox(
             get_text("risk_exposure"),
             factor_exposicion['Clasificacion'].tolist(),
             index=factor_exposicion['Clasificacion'].tolist().index(exposicion_default),
-            key="selected_exposicion"
+            key="selected_exposicion" # ¡Esta key es vital!
         )
     with col2:
         descripcion_riesgo = st.text_area(get_text("risk_description"), value=descripcion_default, height=100, key="risk_description_input")
-        impacto_numerico = st.slider(get_text("risk_impact_numeric"), 0, 100, value=int(impacto_numerico_default), key="impacto_numerico_slider")
-        efectividad_control = st.slider(get_text("risk_control_effectiveness"), 0, 100, value=int(efectividad_control_default), key="control_effectiveness_slider")
-        amenaza_deliberada = st.checkbox(get_text("risk_deliberate_threat"), value=amenaza_deliberada_default, key="deliberate_threat_checkbox")
+        impacto_numerico = st.slider(get_text("risk_impact_numeric"), 0, 100, value=int(impacto_numerico_default), key="impacto_numerico_slider") # ¡Esta key es vital!
+        efectividad_control = st.slider(get_text("risk_control_effectiveness"), 0, 100, value=int(efectividad_control_default), key="control_effectiveness_slider") # ¡Esta key es vital!
+        amenaza_deliberada = st.checkbox(get_text("risk_deliberate_threat"), value=amenaza_deliberada_default, key="deliberate_threat_checkbox") # ¡Esta key es vital!
 
     submitted = st.form_submit_button(get_text("add_risk_button"))
 
@@ -181,16 +219,16 @@ with st.form("risk_form", clear_on_submit=False):
             ponderacion_impacto_val = tabla_tipo_impacto[tabla_tipo_impacto['Tipo de Impacto'] == tipo_impacto]['Ponderación'].iloc[0]
             amenaza_deliberada_factor = 1.0 if amenaza_deliberada else 0.0
 
-            # Calcular criticidad
+            # Calcular criticidad usando la función del módulo calculations
             amenaza_inherente, amenaza_residual, amenaza_residual_ajustada, riesgo_residual_val = calcular_criticidad(
                 probabilidad_val, exposicion_val, amenaza_deliberada_factor, efectividad_control, impacto_numerico, ponderacion_impacto_val
             )
 
-            # Clasificar el riesgo y obtener el color
+            # Clasificar el riesgo y obtener el color usando la función del módulo calculations
             clasificacion, color = clasificar_criticidad(riesgo_residual_val, st.session_state.idioma)
 
             new_risk_data = {
-                "ID": st.session_state.current_edit_index if st.session_state.current_edit_index != -1 else (len(st.session_state.riesgos) + 1),
+                "ID": st.session_state.current_edit_index if st.session_state.current_edit_index != -1 else (st.session_state.riesgos['ID'].max() + 1 if not st.session_state.riesgos.empty else 1), # Generar ID único
                 "Nombre del Riesgo": nombre_riesgo,
                 "Descripción": descripcion_riesgo,
                 "Tipo de Impacto": tipo_impacto,
@@ -213,294 +251,194 @@ with st.form("risk_form", clear_on_submit=False):
                 st.success(f"Riesgo '{nombre_riesgo}' actualizado exitosamente.")
             else:
                 # Agregar nuevo riesgo
+                # pd.concat es más robusto para añadir filas que .append (que está obsoleto)
                 st.session_state.riesgos = pd.concat([st.session_state.riesgos, pd.DataFrame([new_risk_data])], ignore_index=True)
                 st.success(get_text("success_risk_added"))
-            
-            reset_form_fields() # Reiniciar el formulario después de agregar/editar
 
-# --- 2. Resultados del Modelo Determinista ---
-st.header(get_text("deterministic_results_title"))
+            # Después de agregar/editar, reiniciar el índice de edición y los campos del formulario.
+            st.session_state.current_edit_index = -1
+            reset_form_fields() # Llama a la función de utils.py para resetear los campos
+            st.rerun() # Fuerza a Streamlit a redibujar toda la aplicación, limpiando el formulario
 
-if not st.session_state.riesgos.empty:
-    latest_risk = st.session_state.riesgos.iloc[-1]
-    col_d1, col_d2, col_d3, col_d4, col_d5 = st.columns(5)
-    
-    with col_d1:
-        st.markdown(f"""
-        <div class="metric-box">
-            <h3>{get_text("inherent_threat")}</h3>
-            <p>{latest_risk["Amenaza Inherente"]:.2f}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_d2:
-        st.markdown(f"""
-        <div class="metric-box">
-            <h3>{get_text("residual_threat")}</h3>
-            <p>{latest_risk["Amenaza Residual"]:.2f}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_d3:
-        st.markdown(f"""
-        <div class="metric-box">
-            <h3>{get_text("adjusted_residual_threat")}</h3>
-            <p>{latest_risk["Amenaza Residual Ajustada"]:.2f}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_d4:
-        st.markdown(f"""
-        <div class="metric-box">
-            <h3>{get_text("residual_risk")}</h3>
-            <p style="color: {latest_risk['Color']};">{latest_risk["Riesgo Residual"]:.2f}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_d5:
-        st.markdown(f"""
-        <div class="metric-box">
-            <h3>{get_text("classification")}</h3>
-            <p style="color: {latest_risk['Color']};">{latest_risk["Clasificación"]}</p>
-        </div>
-        """, unsafe_allow_html=True)
-else:
-    st.info(get_text("no_risks_yet"))
-
+# --- 2. Visualización de Riesgos ---
 st.markdown("---")
+st.header(get_text("risk_list_title"))
 
-# --- 3. Configuración de Simulación Monte Carlo ---
-st.header(get_text("montecarlo_input_title"))
+if st.session_state.riesgos.empty:
+    st.info(get_text("no_risks_added_yet"))
+else:
+    # Mostrar la tabla de riesgos formateada
+    st.dataframe(format_risk_dataframe(st.session_state.riesgos, st.session_state.idioma), use_container_width=True)
 
-if not st.session_state.riesgos.empty:
-    col_mc1, col_mc2 = st.columns(2)
-    with col_mc1:
-        valor_economico_activo = st.number_input(
-            get_text("economic_value_asset"),
-            min_value=0.0,
-            value=100000.0,
-            step=1000.0,
-            format="%.2f"
-        )
-    with col_mc2:
-        num_iteraciones = st.number_input(
-            get_text("num_iterations"),
-            min_value=1000,
-            max_value=100000,
-            value=10000,
-            step=1000
-        )
-
-    if st.button(get_text("run_montecarlo_button")):
-        if valor_economico_activo > 0 and not st.session_state.riesgos.empty:
-            # Seleccionar el último riesgo agregado/editado para la simulación
-            risk_for_simulation = st.session_state.riesgos.iloc[-1]
-            
-            probabilidad_sim_base = risk_for_simulation["Probabilidad"]
-            exposicion_sim_base = risk_for_simulation["Exposición"]
-            impacto_numerico_sim_base = risk_for_simulation["Impacto Numérico"]
-            efectividad_control_sim_base_pct = risk_for_simulation["Efectividad del Control (%)"]
-            amenaza_deliberada_sim_factor_base = risk_for_simulation["Amenaza Deliberada"]
-            ponderacion_impacto_sim = tabla_tipo_impacto[tabla_tipo_impacto['Tipo de Impacto'] == risk_for_simulation["Tipo de Impacto"]]['Ponderación'].iloc[0]
-
-            riesgo_residual_sim, perdidas_usd_sim, correlations = simular_montecarlo(
-                probabilidad_sim_base, exposicion_sim_base, impacto_numerico_sim_base,
-                efectividad_control_sim_base_pct, amenaza_deliberada_sim_factor_base,
-                ponderacion_impacto_sim, valor_economico_activo, num_iteraciones
-            )
-            
-            st.session_state['riesgo_residual_sim'] = riesgo_residual_sim
-            st.session_state['perdidas_usd_sim'] = perdidas_usd_sim
-            st.session_state['correlations'] = correlations
-            
-            if len(perdidas_usd_sim) > 0:
-                st.session_state['expected_loss'] = np.mean(perdidas_usd_sim)
-                st.session_state['median_loss'] = np.median(perdidas_usd_sim)
-                st.session_state['p5_loss'] = np.percentile(perdidas_usd_sim, 5)
-                st.session_state['p90_loss'] = np.percentile(perdidas_usd_sim, 90)
-                st.session_state['max_loss'] = np.max(perdidas_usd_sim)
-                
-                # Calcular CVaR (Conditional Value at Risk) al 95%
-                # CVaR 95% es la media de las peores 5% pérdidas.
-                # Asegúrate de que haya suficientes datos para calcular el percentil 5.
-                if len(perdidas_usd_sim) >= 20: # 5% de 10000 iteraciones es 500 datos
-                    tail_losses = perdidas_usd_sim[perdidas_usd_sim >= np.percentile(perdidas_usd_sim, 95)]
-                    st.session_state['cvar_95'] = np.mean(tail_losses)
-                else:
-                    st.session_state['cvar_95'] = 0.0 # No se puede calcular con pocos datos
+    col_edit, col_delete = st.columns(2)
+    with col_edit:
+        # Permitir seleccionar un riesgo para editar
+        risk_to_select_edit = st.selectbox(get_text("select_risk_to_edit"), [""] + st.session_state.riesgos["Nombre del Riesgo"].tolist(), key="select_edit_risk")
+        if st.button(get_text("edit_selected_risk_button")):
+            if risk_to_select_edit:
+                st.session_state.current_edit_index = st.session_state.riesgos[st.session_state.riesgos["Nombre del Riesgo"] == risk_to_select_edit].index[0]
+                st.info(f"{get_text('editing_risk')} '{risk_to_select_edit}'. {get_text('edit_in_form')}.")
+                st.rerun() # Recargar para que el formulario se llene con los datos del riesgo
             else:
-                st.session_state['expected_loss'] = 0.0
-                st.session_state['median_loss'] = 0.0
-                st.session_state['p5_loss'] = 0.0
-                st.session_state['p90_loss'] = 0.0
-                st.session_state['max_loss'] = 0.0
-                st.session_state['cvar_95'] = 0.0
-            st.success("Simulación Monte Carlo completada.")
-        else:
-            st.warning("Por favor, asegúrate de haber agregado al menos un riesgo y que el valor económico del activo sea mayor que cero.")
+                st.warning(get_text("please_select_risk_to_edit"))
 
-else:
-    st.info(get_text("no_risks_yet"))
+    with col_delete:
+        # Permitir seleccionar un riesgo para eliminar
+        risk_to_select_delete = st.selectbox(get_text("select_risk_to_delete"), [""] + st.session_state.riesgos["Nombre del Riesgo"].tolist(), key="select_delete_risk")
+        if st.button(get_text("delete_selected_risk_button")):
+            if risk_to_select_delete:
+                # Eliminar el riesgo y reiniciar el estado
+                st.session_state.riesgos = st.session_state.riesgos[st.session_state.riesgos["Nombre del Riesgo"] != risk_to_select_delete].reset_index(drop=True)
+                st.success(f"Riesgo '{risk_to_select_delete}' {get_text('successfully_deleted')}.")
+                # Asegurarse de que no estamos en modo edición si el riesgo eliminado era el que se editaba
+                if st.session_state.current_edit_index != -1 and not st.session_state.riesgos.empty:
+                    # Si el índice actual aún es válido después de eliminar, mantenerlo, si no, resetear.
+                    if st.session_state.current_edit_index >= len(st.session_state.riesgos):
+                        st.session_state.current_edit_index = -1
+                elif st.session_state.riesgos.empty: # Si no quedan riesgos
+                    st.session_state.current_edit_index = -1
+                reset_form_fields() # Resetear también el formulario
+                st.rerun() # Recargar la página para que la tabla y el formulario se actualicen
+            else:
+                st.warning(get_text("please_select_risk_to_delete"))
 
+# --- 3. Cuadrante de Riesgos (Heatmap) ---
 st.markdown("---")
+st.header(get_text("risk_quadrant_title"))
 
-# --- 4. Resultados de la Simulación Monte Carlo ---
-st.header(get_text("montecarlo_results_title"))
-
-if 'perdidas_usd_sim' in st.session_state and len(st.session_state['perdidas_usd_sim']) > 0:
-    col_mc_res1, col_mc_res2, col_mc_res3 = st.columns(3)
-    col_mc_res4, col_mc_res5, col_mc_res6 = st.columns(3)
-
-    with col_mc_res1:
-        st.markdown(f"""
-        <div class="metric-box">
-            <h3>{get_text("expected_loss")}</h3>
-            <p>${st.session_state['expected_loss']:.2f}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_mc_res2:
-        st.markdown(f"""
-        <div class="metric-box">
-            <h3>{get_text("median_loss")}</h3>
-            <p>${st.session_state['median_loss']:.2f}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_mc_res3:
-        st.markdown(f"""
-        <div class="metric-box">
-            <h3>{get_text("p90_loss")}</h3>
-            <p>${st.session_state['p90_loss']:.2f}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_mc_res4:
-        st.markdown(f"""
-        <div class="metric-box">
-            <h3>{get_text("max_loss")}</h3>
-            <p>${st.session_state['max_loss']:.2f}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_mc_res5:
-        st.markdown(f"""
-        <div class="metric-box">
-            <h3>{get_text("cvar_95")}</h3>
-            <p>${st.session_state['cvar_95']:.2f}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_mc_res6:
-        st.markdown(f"""
-        <div class="metric-box">
-            <h3>{get_text("p5_loss")}</h3>
-            <p>${st.session_state['p5_loss']:.2f}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.subheader(get_text("sensitivity_analysis_title"))
-    if 'correlations' in st.session_state and not st.session_state['correlations'].empty:
-        sensitivity_fig = create_sensitivity_plot(st.session_state['correlations'], st.session_state.idioma)
-        if sensitivity_fig:
-            st.plotly_chart(sensitivity_fig, use_container_width=True)
-        else:
-            st.info("No hay datos suficientes para generar el gráfico de sensibilidad o todas las varianzas son cero.")
-    else:
-        st.info("No hay resultados de simulación Monte Carlo disponibles para el análisis de sensibilidad.")
-
+if st.session_state.riesgos.empty:
+    st.info(get_text("add_risks_for_heatmap"))
 else:
-    st.info("Ejecuta la simulación Monte Carlo para ver los resultados.")
-
-st.markdown("---")
-
-# --- 5. Riesgos Evaluados Acumulados ---
-st.header(get_text("added_risks_title"))
-
-if not st.session_state.riesgos.empty:
-    # Ordenar por Riesgo Residual de mayor a menor
-    df_risks_display = st.session_state.riesgos.sort_values(by="Riesgo Residual", ascending=False).reset_index(drop=True)
-    
-    # Formatear el DataFrame para visualización con colores
-    styled_df_risks = format_risk_dataframe(df_risks_display, st.session_state.idioma)
-    st.dataframe(styled_df_risks, use_container_width=True)
-
-    # Botón para descargar datos
-    csv = st.session_state.riesgos.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label=get_text("download_excel_button"),
-        data=csv,
-        file_name="riesgos_evaluados.csv",
-        mime="text/csv",
-    )
-
-    # Funcionalidad de edición y eliminación
-    st.subheader("Acciones sobre Riesgos")
-    cols_actions = st.columns(df_risks_display.shape[0]) # Crear columnas dinámicamente
-
-    for i, row in df_risks_display.iterrows():
-        unique_key_edit = f"edit_button_{row['ID']}_{i}"
-        unique_key_delete = f"delete_button_{row['ID']}_{i}"
-        
-        with cols_actions[i % len(cols_actions)]: # Distribuir botones en las columnas
-            if st.button(get_text("edit_risk"), key=unique_key_edit):
-                st.session_state.current_edit_index = st.session_state.riesgos[st.session_state.riesgos['ID'] == row['ID']].index[0]
-                st.rerun() # Volver a ejecutar para cargar los datos en el formulario
-
-            if st.button(get_text("delete_risk"), key=unique_key_delete):
-                if st.session_state.get(f"confirm_delete_{row['ID']}", False):
-                    # Si ya se confirmó, eliminar
-                    st.session_state.riesgos = st.session_state.riesgos.drop(st.session_state.riesgos[st.session_state.riesgos['ID'] == row['ID']].index).reset_index(drop=True)
-                    st.success(get_text("risk_deleted"))
-                    st.session_state[f"confirm_delete_{row['ID']}"] = False # Resetear confirmación
-                    st.rerun()
-                else:
-                    st.warning(get_text("confirm_delete"))
-                    st.session_state[f"confirm_delete_{row['ID']}"] = True # Pedir confirmación
-else:
-    st.info(get_text("no_risks_yet"))
-
-st.markdown("---")
-
-# --- 6. Mapa de Calor de Riesgos ---
-st.header(get_text("risk_heatmap_title"))
-if not st.session_state.riesgos.empty:
     heatmap_fig = create_heatmap(st.session_state.riesgos, matriz_probabilidad, matriz_impacto, st.session_state.idioma)
     if heatmap_fig:
         st.plotly_chart(heatmap_fig, use_container_width=True)
-else:
-    st.info(get_text("no_risks_yet"))
+    else:
+        st.warning(get_text("heatmap_error"))
 
+# --- 4. Análisis de Pareto ---
 st.markdown("---")
+st.header(get_text("pareto_analysis_title"))
 
-# --- 7. Gráfico de Pareto de Riesgos ---
-st.header(get_text("risk_pareto_chart_title"))
-if not st.session_state.riesgos.empty:
+if st.session_state.riesgos.empty:
+    st.info(get_text("add_risks_for_pareto"))
+else:
     pareto_fig = create_pareto_chart(st.session_state.riesgos, st.session_state.idioma)
     if pareto_fig:
         st.plotly_chart(pareto_fig, use_container_width=True)
-else:
-    st.info(get_text("no_risks_yet"))
+    else:
+        st.warning(get_text("pareto_error"))
 
+# --- 5. Simulación de Monte Carlo ---
 st.markdown("---")
+st.header(get_text("monte_carlo_simulation_title"))
+st.info(get_text("monte_carlo_info"))
 
-# --- 8. Distribución del Riesgo Residual Simulado (Índice) ---
-st.header(get_text("risk_distribution_title"))
-if 'riesgo_residual_sim' in st.session_state and len(st.session_state['riesgo_residual_sim']) > 0:
-    hist_risk_fig = plot_montecarlo_histogram(
-        st.session_state['riesgo_residual_sim'],
-        get_text("risk_distribution_title"),
-        get_text("residual_risk"),
-        st.session_state.idioma
-    )
-    if hist_risk_fig:
-        st.pyplot(hist_risk_fig)
+if st.session_state.riesgos.empty:
+    st.info(get_text("add_risks_for_montecarlo"))
 else:
-    st.info("Ejecuta la simulación Monte Carlo para ver la distribución del riesgo residual.")
+    # Widgets para seleccionar un riesgo y configurar la simulación
+    selected_risk_mc_name = st.selectbox(
+        get_text("select_risk_for_mc"),
+        [""] + st.session_state.riesgos["Nombre del Riesgo"].tolist(),
+        key="monte_carlo_risk_selector"
+    )
 
+    if selected_risk_mc_name:
+        risk_mc = st.session_state.riesgos[st.session_state.riesgos["Nombre del Riesgo"] == selected_risk_mc_name].iloc[0]
+
+        st.subheader(f"{get_text('simulation_for_risk')}: {risk_mc['Nombre del Riesgo']}")
+
+        col_mc1, col_mc2 = st.columns(2)
+        with col_mc1:
+            st.metric(get_text("mc_risk_name"), risk_mc['Nombre del Riesgo'])
+            st.metric(get_text("mc_type_impact"), risk_mc['Tipo de Impacto'])
+            st.metric(get_text("mc_probability"), f"{risk_mc['Probabilidad']:.2f} ({get_text('factor')})")
+            st.metric(get_text("mc_exposure"), f"{risk_mc['Exposición']:.2f} ({get_text('factor')})")
+        with col_mc2:
+            st.metric(get_text("mc_impact_numeric"), f"{risk_mc['Impacto Numérico']}%")
+            st.metric(get_text("mc_control_effectiveness"), f"{risk_mc['Efectividad del Control (%)']}%")
+            st.metric(get_text("mc_deliberate_threat"), "Sí" if risk_mc['Amenaza Deliberada'] else "No")
+            st.metric(get_text("mc_current_residual_risk"), f"{risk_mc['Riesgo Residual']:.2f} ({risk_mc['Clasificación']})")
+
+        # Input de valor económico para la simulación
+        valor_economico = st.number_input(
+            get_text("economic_value_asset"),
+            min_value=0.0,
+            value=100000.0, # Valor predeterminado
+            step=10000.0,
+            format="%.2f",
+            key="mc_economic_value"
+        )
+        num_iteraciones = st.slider(get_text("num_montecarlo_iterations"), 1000, 100000, value=10000, step=1000, key="mc_iterations")
+
+        if st.button(get_text("run_montecarlo_button"), key="run_mc_button"):
+            if valor_economico <= 0:
+                st.warning(get_text("economic_value_positive"))
+            else:
+                with st.spinner(get_text("running_simulation")):
+                    riesgos_simulados, perdidas_simuladas, correlaciones = simular_montecarlo(
+                        probabilidad_base=risk_mc['Probabilidad'],
+                        exposicion_base=risk_mc['Exposición'],
+                        impacto_numerico_base=risk_mc['Impacto Numérico'],
+                        efectividad_base_pct=risk_mc['Efectividad del Control (%)'],
+                        amenaza_deliberada_factor_base=risk_mc['Amenaza Deliberada'],
+                        ponderacion_impacto=tabla_tipo_impacto[tabla_tipo_impacto['Tipo de Impacto'] == risk_mc['Tipo de Impacto']]['Ponderación'].iloc[0],
+                        valor_economico=valor_economico,
+                        iteraciones=num_iteraciones
+                    )
+
+                if riesgos_simulados is not None and len(riesgos_simulados) > 0:
+                    st.success(get_text("simulation_complete"))
+
+                    col_results1, col_results2 = st.columns(2)
+                    with col_results1:
+                        st.subheader(get_text("simulated_risk_distribution"))
+                        fig_riesgo = plot_montecarlo_histogram(
+                            riesgos_simulados,
+                            get_text("histogram_risk_title"),
+                            get_text("risk_value_label"),
+                            st.session_state.idioma
+                        )
+                        st.pyplot(fig_riesgo) # Usar st.pyplot para figuras de Matplotlib
+                        plt.close(fig_riesgo) # Cierra la figura para liberar memoria
+
+                    with col_results2:
+                        st.subheader(get_text("simulated_economic_losses"))
+                        fig_perdida = plot_montecarlo_histogram(
+                            perdidas_simuladas,
+                            get_text("histogram_losses_title"),
+                            get_text("losses_value_label"),
+                            st.session_state.idioma
+                        )
+                        st.pyplot(fig_perdida)
+                        plt.close(fig_perdida)
+
+                    st.markdown("---")
+                    st.subheader(get_text("sensitivity_analysis_title"))
+                    st.info(get_text("sensitivity_analysis_info"))
+                    if correlaciones is not None and not correlaciones.empty:
+                        sensitivity_fig = create_sensitivity_plot(correlaciones, st.session_state.idioma)
+                        st.plotly_chart(sensitivity_fig, use_container_width=True)
+                    else:
+                        st.warning(get_text("no_sensitivity_data"))
+                else:
+                    st.warning(get_text("no_simulation_data"))
+    else:
+        st.info(get_text("select_risk_to_start_mc"))
+
+# --- 6. Matriz de Impacto y Probabilidad (Solo para referencia) ---
 st.markdown("---")
-
-# --- 9. Distribución de Pérdidas Económicas Simuladas (USD) ---
-st.header(get_text("economic_loss_distribution_title"))
-if 'perdidas_usd_sim' in st.session_state and len(st.session_state['perdidas_usd_sim']) > 0:
-    hist_loss_fig = plot_montecarlo_histogram(
-        st.session_state['perdidas_usd_sim'],
-        get_text("economic_loss_distribution_title"),
-        get_text("economic_value_asset"),
-        st.session_state.idioma
-    )
-    if hist_loss_fig:
-        st.pyplot(hist_loss_fig)
-else:
-    st.info("Ejecuta la simulación Monte Carlo para ver la distribución de pérdidas económicas.")
+st.header(get_text("impact_probability_matrix_title"))
+st.subheader(get_text("probability_factors"))
+st.dataframe(factor_probabilidad.style.format({"Factor": "{:.2f}"}), use_container_width=True)
+st.subheader(get_text("exposure_factors"))
+st.dataframe(factor_exposicion.style.format({"Factor": "{:.2f}"}), use_container_width=True)
+st.subheader(get_text("impact_types"))
+st.dataframe(tabla_tipo_impacto.style.format({"Ponderación": "{:.2f}"}), use_container_width=True)
+st.subheader(get_text("control_effectiveness_levels"))
+st.dataframe(efectividad_controles, use_container_width=True)
+st.subheader(get_text("criticality_limits"))
+# Reemplazar los valores numéricos de la columna de límite por la descripción en texto
+df_criticidad_display = pd.DataFrame(criticidad_límites, columns=['Min', 'Max', 'Clasificación (ES)', 'Color', 'Clasificación (EN)'])
+# Ocultar las columnas de color si no es necesario ver el código hexadecimal
+st.dataframe(df_criticidad_display[['Min', 'Max', 'Clasificación (ES)', 'Clasificación (EN)']], use_container_width=True)
