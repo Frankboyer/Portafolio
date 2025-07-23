@@ -7,7 +7,6 @@ tabla_tipo_impacto = pd.DataFrame({
 })
 
 # --- Matriz de Probabilidad ---
-# ESTO ES CRÍTICO: Asegúrate de que las columnas se llamen 'Rango Min' y 'Rango Max' exactamente.
 matriz_probabilidad = pd.DataFrame({
     'Clasificacion': ['Muy Bajo', 'Bajo', 'Medio', 'Alto', 'Muy Alto'],
     'Rango Min': [0.00, 0.20, 0.40, 0.60, 0.80],
@@ -15,8 +14,6 @@ matriz_probabilidad = pd.DataFrame({
 })
 
 # --- Matriz de Impacto (para Heatmap) ---
-# ESTO ES CRÍTICO: Asegúrate de que las columnas se llamen 'Rango Min' y 'Rango Max' exactamente.
-# Estos valores deberían coincidir con el rango de tu slider de Impacto Numérico (0-100).
 matriz_impacto = pd.DataFrame({
     'Clasificacion': ['Insignificante', 'Menor', 'Moderado', 'Mayor', 'Catastrófico'],
     'Rango Min': [0, 20, 40, 60, 80],
@@ -42,7 +39,6 @@ efectividad_controles = pd.DataFrame({
 })
 
 # --- Límites de Criticidad (para clasificación de riesgo) ---
-# [Min, Max, Clasificación ES, Color, Clasificación EN]
 criticidad_límites = [
     [0, 20, 'Bajo', '#d4edda', 'Low'],       # Verde claro
     [21, 40, 'Medio', '#ffc107', 'Medium'],   # Amarillo
@@ -106,3 +102,118 @@ textos = {
         "running_simulation": "Ejecutando simulación...",
         "simulation_complete": "Simulación completa. Resultados:",
         "simulated_risk_distribution": "Distribución del Riesgo Residual Simulado",
+        "histogram_risk_title": "Distribución del Riesgo Residual Simulado",
+        "risk_value_label": "Valor del Riesgo Residual",
+        "simulated_economic_losses": "Pérdidas Económicas Simuladas",
+        "histogram_losses_title": "Distribución de Pérdidas Económicas Simuladas",
+        "losses_value_label": "Valor de la Pérdida Económica ($)",
+        "sensitivity_analysis_title": "Análisis de Sensibilidad",
+        "sensitivity_analysis_info": "Muestra la correlación de cada factor con el Riesgo Residual simulado.",
+        "no_sensitivity_data": "No hay datos de sensibilidad disponibles para mostrar.",
+        "select_risk_to_start_mc": "Selecciona un riesgo para iniciar la simulación de Monte Carlo.",
+        "impact_probability_matrix_title": "6. Matrices de Referencia",
+        "probability_factors": "Factores de Probabilidad",
+        "exposure_factors": "Factores de Exposición",
+        "impact_types": "Tipos de Impacto",
+        "control_effectiveness_levels": "Niveles de Efectividad del Control",
+        "criticality_limits": "Límites de Criticidad (Riesgo Residual)",
+        "factor": "Factor", # Para mostrar junto al número
+        "classification_label": "Clasificación",
+        "sum_residual_risk_label": "Suma Riesgo Residual",
+        "percentage_label": "Porcentaje",
+        "cumulative_percentage_label": "Porcentaje Acumulado",
+        "pareto_chart_title": "Análisis de Pareto por Clasificación de Riesgo",
+        "frequency_label": "Frecuencia",
+        "correlation_plot_title": "Análisis de Sensibilidad: Correlación con Riesgo Residual",
+        "correlation_coefficient_label": "Coeficiente de Correlación",
+        "variable_label": "Variable",
+        "risk_count_title": "Conteo de Riesgos",
+        "risk_heatmap_title": "Cuadrante de Riesgos: Conteo por Categoría",
+        "impact_category_label": "Categoría de Impacto",
+        "probability_category_label": "Categoría de Probabilidad"
+    },
+    'en': {
+        "sidebar_language_toggle": "Switch to Spanish",
+        "tax_info_title": "Important Information",
+        "tax_info_text": "This application is a risk simulation tool. Results are estimates and should not be construed as financial, legal, or security advice. Always consult with a qualified professional for specific decisions. It does not consider tax implications or specific regulatory requirements.",
+        "app_title": "Enterprise Risk Calculator and Simulator",
+        "risk_input_form_title": "1. Risk Data Entry",
+        "risk_name": "Risk Name",
+        "risk_description": "Risk Description",
+        "risk_type_impact": "Type of Impact",
+        "risk_probability": "Probability",
+        "risk_exposure": "Exposure",
+        "risk_impact_numeric": "Numeric Impact (0-100%)",
+        "risk_control_effectiveness": "Existing Control Effectiveness (%)",
+        "risk_deliberate_threat": "Deliberate Threat?",
+        "add_risk_button": "Add/Update Risk",
+        "error_risk_name_empty": "Please enter a risk name!",
+        "success_risk_added": "Risk added successfully.",
+        "risk_list_title": "2. Risk List",
+        "no_risks_added_yet": "No risks added yet. Use the form above to add one.",
+        "select_risk_to_edit": "Select a risk to edit",
+        "edit_selected_risk_button": "Edit Selected Risk",
+        "editing_risk": "Editing risk",
+        "edit_in_form": "Modify the fields in the form above.",
+        "please_select_risk_to_edit": "Please select a risk to edit.",
+        "select_risk_to_delete": "Select a risk to delete",
+        "delete_selected_risk_button": "Delete Selected Risk",
+        "successfully_deleted": "successfully deleted",
+        "please_select_risk_to_delete": "Please select a risk to delete.",
+        "risk_quadrant_title": "3. Risk Quadrant (Heatmap)",
+        "add_risks_for_heatmap": "Add risks to visualize the risk quadrant.",
+        "heatmap_error": "Could not generate the risk quadrant. Ensure you have valid data.",
+        "pareto_analysis_title": "4. Pareto Analysis",
+        "add_risks_for_pareto": "Add risks to see the Pareto analysis.",
+        "pareto_error": "Could not generate the Pareto chart. Ensure you have valid data.",
+        "monte_carlo_simulation_title": "5. Monte Carlo Simulation",
+        "monte_carlo_info": "Simulate the distribution of residual risks and economic losses for a specific risk.",
+        "add_risks_for_montecarlo": "Add risks to run a Monte Carlo simulation.",
+        "select_risk_for_mc": "Select a risk for Monte Carlo simulation",
+        "simulation_for_risk": "Simulation for Risk",
+        "mc_risk_name": "Risk Name",
+        "mc_type_impact": "Impact Type",
+        "mc_probability": "Probability",
+        "mc_exposure": "Exposure",
+        "mc_impact_numeric": "Numeric Impact",
+        "mc_control_effectiveness": "Control Effectiveness",
+        "mc_deliberate_threat": "Deliberate Threat",
+        "mc_current_residual_risk": "Current Residual Risk",
+        "economic_value_asset": "Economic Value of Affected Asset ($)",
+        "num_montecarlo_iterations": "Number of Monte Carlo Iterations",
+        "run_montecarlo_button": "Run Monte Carlo Simulation",
+        "economic_value_positive": "Please enter a positive economic value.",
+        "running_simulation": "Running simulation...",
+        "simulation_complete": "Simulation complete. Results:",
+        "simulated_risk_distribution": "Simulated Residual Risk Distribution",
+        "histogram_risk_title": "Simulated Residual Risk Distribution",
+        "risk_value_label": "Residual Risk Value",
+        "simulated_economic_losses": "Simulated Economic Losses",
+        "histogram_losses_title": "Simulated Economic Losses Distribution",
+        "losses_value_label": "Economic Loss Value ($)",
+        "sensitivity_analysis_title": "Sensitivity Analysis",
+        "sensitivity_analysis_info": "Shows the correlation of each factor with the simulated Residual Risk.",
+        "no_sensitivity_data": "No sensitivity data available to display.",
+        "select_risk_to_start_mc": "Select a risk to start Monte Carlo simulation.",
+        "impact_probability_matrix_title": "6. Reference Matrices",
+        "probability_factors": "Probability Factors",
+        "exposure_factors": "Exposure Factors",
+        "impact_types": "Impact Types",
+        "control_effectiveness_levels": "Control Effectiveness Levels",
+        "criticality_limits": "Criticality Limits (Residual Risk)",
+        "factor": "Factor",
+        "classification_label": "Classification",
+        "sum_residual_risk_label": "Sum of Residual Risk",
+        "percentage_label": "Percentage",
+        "cumulative_percentage_label": "Cumulative Percentage",
+        "pareto_chart_title": "Pareto Analysis by Risk Classification",
+        "frequency_label": "Frequency",
+        "correlation_plot_title": "Sensitivity Analysis: Correlation with Residual Risk",
+        "correlation_coefficient_label": "Correlation Coefficient",
+        "variable_label": "Variable",
+        "risk_count_title": "Risk Count",
+        "risk_heatmap_title": "Risk Quadrant: Count by Category",
+        "impact_category_label": "Impact Category",
+        "probability_category_label": "Probability Category"
+    }
+}
