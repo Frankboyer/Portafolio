@@ -930,6 +930,16 @@ with col_graf:
     else:
         st.info("Agrega riesgos para generar el mapa de calor.")
 
+  with col_graf:
+    # Mapa de Calor de Riesgos (5x5)
+    st.header(get_text("risk_heatmap_title"))
+    if not st.session_state.riesgos.empty:
+        fig_heatmap = create_heatmap(st.session_state.riesgos, matriz_probabilidad, matriz_impacto, st.session_state.idioma)
+        if fig_heatmap:
+            st.plotly_chart(fig_heatmap, use_container_width=True)
+    else:
+        st.info("Agrega riesgos para generar el mapa de calor.")
+
     st.markdown("---")
     # Gráfico de Pareto de Riesgos
     st.header(get_text("risk_pareto_chart_title"))
@@ -947,7 +957,7 @@ with col_graf:
         perdidas = st.session_state.perdidas_usd_sim_data
         
         # Calcular CVaR (Expected Shortfall)
-        alpha = 0.95 # Para CVaR 95%
+        alpha = 0.95  # Para CVaR 95%
         # Ordenar las pérdidas y tomar el (1-alpha) superior
         sorted_losses = np.sort(perdidas)
         index_cvar = int(np.floor(len(sorted_losses) * alpha))
@@ -956,4 +966,4 @@ with col_graf:
         col_mc1, col_mc2 = st.columns(2)
         with col_mc1:
             st.markdown(f"<div class='metric-box'><h3>{get_text('expected_loss')}</h3><p>${np.mean(perdidas):,.2f}</p></div>", unsafe_allow_html=True)
-           st.markdown(f"<div class='metric-box'><h3>{get_text('median_value')}</h3></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='metric-box'><h3>{get_text('median_value')}</h3></div>", unsafe_allow_html=True)
