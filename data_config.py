@@ -157,7 +157,6 @@ textos = {
         "edit_in_form": "Modify the fields in the form above.",
         "please_select_risk_to_edit": "Please select a risk to edit.",
         "select_risk_to_delete": "Select a risk to delete",
-        "delete_selected_risk_button": "Delete Selected Risk",
         "successfully_deleted": "successfully deleted",
         "please_select_risk_to_delete": "Please select a risk to delete.",
         "risk_quadrant_title": "3. Risk Quadrant (Heatmap)",
