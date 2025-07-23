@@ -1,184 +1,149 @@
-import numpy as np
 import pandas as pd
-from data_config import criticidad_límites # Importar desde el nuevo archivo
+import numpy as np
+from scipy.stats import norm, pearsonr # Asegúrate de que pearsonr está importado
 
-def clasificar_criticidad(valor, idioma="es"):
+# --- Funciones de Cálculo ---
+
+def calcular_criticidad(probabilidad, exposicion, amenaza_deliberada_factor, efectividad_control_pct, impacto_numerico, ponderacion_impacto):
     """
-    Clasifica un valor numérico de riesgo en una categoría de criticidad
-    y asigna un color asociado.
+    Calcula la amenaza inherente, residual y la criticidad final de un riesgo.
 
     Args:
-        valor (float): El valor numérico del riesgo residual (entre 0 y 1).
-        idioma (str, optional): El idioma para la clasificación ('es' para español, 'en' para inglés).
-                                 Por defecto es 'es'.
+        probabilidad (float): Factor de probabilidad (0-1).
+        exposicion (float): Factor de exposición (0-1).
+        amenaza_deliberada_factor (float): 1.0 si es amenaza deliberada, 0.0 si no.
+        efectividad_control_pct (float): Efectividad del control existente en porcentaje (0-100).
+        impacto_numerico (float): Impacto numérico del riesgo (0-100).
+        ponderacion_impacto (float): Ponderación del tipo de impacto (0-1).
 
     Returns:
-        tuple: Una tupla que contiene la clasificación del riesgo (str) y el color hexadecimal (str).
-               Ejemplo: ('ACEPTABLE', '#28a745')
+        tuple: (amenaza_inherente, amenaza_residual, amenaza_residual_ajustada, riesgo_residual)
     """
-    for v_min, v_max, clasificacion_es, color, clasificacion_en in criticidad_límites:
-        if v_min <= valor <= v_max:
-            if idioma == "es":
-                return clasificacion_es, color
-            else:
-                return clasificacion_en, color
-    return "DESCONOCIDO", "#cccccc" # Default si no se encuentra en ningún rango
+    # Convertir efectividad de porcentaje a factor
+    efectividad_control = efectividad_control_pct / 100.0
 
-def calcular_criticidad(probabilidad, exposicion, amenaza_deliberada_factor, efectividad, valor_impacto_numerico, ponderacion_impacto):
+    # 1. Amenaza Inherente (Antes de cualquier control o factor adicional)
+    # Escala de impacto: (Impacto Numérico / 100) para normalizar a 0-1
+    amenaza_inherente = probabilidad * exposicion * (impacto_numerico / 100.0) * ponderacion_impacto
+
+    # 2. Amenaza Residual (Considerando amenaza deliberada)
+    # Si es amenaza deliberada, se incrementa la amenaza inherente
+    amenaza_residual = amenaza_inherente * (1 + amenaza_deliberada_factor)
+
+    # 3. Amenaza Residual Ajustada (Considerando efectividad del control)
+    amenaza_residual_ajustada = amenaza_residual * (1 - efectividad_control)
+
+    # 4. Riesgo Residual Final (Escala 0-100 para clasificación)
+    # Multiplicamos por 100 para llevarlo a una escala de 0 a 100
+    riesgo_residual = amenaza_residual_ajustada * 100
+
+    # Asegurarse de que el riesgo residual esté entre 0 y 100
+    riesgo_residual = np.clip(riesgo_residual, 0, 100)
+
+    return amenaza_inherente, amenaza_residual, amenaza_residual_ajustada, riesgo_residual
+
+def clasificar_criticidad(valor_riesgo, idioma='es'):
     """
-    Calcula las diferentes métricas de riesgo basadas en un modelo determinista.
+    Clasifica un valor de riesgo en una categoría de criticidad.
 
     Args:
-        probabilidad (float): Valor de probabilidad de ocurrencia (0-1).
-        exposicion (float): Valor de exposición (0-1).
-        amenaza_deliberada_factor (float): Factor que indica si es una amenaza deliberada (0 para No, 1 para Sí).
-        efectividad (float): Efectividad del control en porcentaje (0-100).
-        valor_impacto_numerico (float): Valor de impacto numérico (0-100).
-        ponderacion_impacto (float): Ponderación del tipo de impacto (ej. 25 para Humano).
+        valor_riesgo (float): El valor numérico del riesgo residual.
+        idioma (str): 'es' para español, 'en' para inglés.
 
     Returns:
-        tuple: Una tupla que contiene:
-               - amenaza_inherente (float): Amenaza inherente calculada.
-               - amenaza_residual (float): Amenaza residual antes del ajuste por amenaza deliberada.
-               - amenaza_residual_ajustada (float): Amenaza residual ajustada por amenaza deliberada.
-               - riesgo_residual (float): El riesgo residual final, normalizado entre 0 y 1.
+        tuple: (clasificación, color_hex)
     """
-    try:
-        # Asegurarse de que los valores numéricos estén en el rango correcto
-        probabilidad = float(probabilidad)
-        exposicion = float(exposicion)
-        amenaza_deliberada_factor = float(amenaza_deliberada_factor)
-        efectividad = float(efectividad) / 100.0 # Convertir porcentaje a factor (0-1)
-        valor_impacto_numerico = float(valor_impacto_numerico)
-        ponderacion_impacto = float(ponderacion_impacto)
+    # Importar aquí para asegurar acceso a criticidad_límites
+    from data_config import criticidad_límites
 
-        # Normalizar el impacto numérico y la ponderación para la fórmula
-        # El impacto numérico (0-100) se normaliza a un factor de 0-1
-        impacto_norm = valor_impacto_numerico / 100.0 if valor_impacto_numerico > 0 else 0
-        # La ponderación del impacto (ej. 25 para humano) se normaliza a un factor de 0-1
-        ponderacion_factor = ponderacion_impacto / 100.0
+    for min_val, max_val, clasificacion_es, color, clasificacion_en in criticidad_límites:
+        if min_val <= valor_riesgo <= max_val:
+            return (clasificacion_es if idioma == 'es' else clasificacion_en), color
+    return "Desconocido", "#cccccc" # Fallback
 
-        # Cálculos de riesgo
-        amenaza_inherente = probabilidad * exposicion
-        amenaza_residual = amenaza_inherente * (1 - efectividad)
-
-        # Ajuste a la lógica original: si amenaza_deliberada_factor es 1 (Sí), duplica amenaza_residual
-        # Si es 0 (No), mantiene amenaza_residual.
-        amenaza_residual_ajustada = amenaza_residual * (1 + amenaza_deliberada_factor)
-
-        # El riesgo residual final se calcula combinando la amenaza ajustada con el impacto y la ponderación
-        riesgo_residual = amenaza_residual_ajustada * impacto_norm * ponderacion_factor
-
-        # Asegurar que el riesgo residual no exceda 1
-        riesgo_residual = np.clip(riesgo_residual, 0, 1)
-
-        return amenaza_inherente, amenaza_residual, amenaza_residual_ajustada, riesgo_residual
-
-    except Exception as e:
-        print(f"Error en calcular_criticidad: {e}")
-        return 0.0, 0.0, 0.0, 0.0 # Retornar valores seguros en caso de error
-
-def simular_montecarlo(probabilidad_base, exposicion_base, impacto_numerico_base, efectividad_base_pct, amenaza_deliberada_factor_base, ponderacion_impacto, valor_economico, iteraciones=10000):
+def simular_montecarlo(probabilidad_base, exposicion_base, impacto_numerico_base,
+                       efectividad_base_pct, amenaza_deliberada_factor_base,
+                       ponderacion_impacto, valor_economico, iteraciones=10000):
     """
-    Ejecuta una simulación Monte Carlo para el cálculo de riesgos y pérdidas económicas.
-    Simula la variabilidad de los factores de riesgo y calcula la distribución de pérdidas.
+    Realiza una simulación de Monte Carlo para el riesgo residual y las pérdidas económicas.
 
     Args:
-        probabilidad_base (float): Probabilidad base de ocurrencia.
-        exposicion_base (float): Exposición base.
-        impacto_numerico_base (float): Impacto numérico base (0-100).
+        probabilidad_base (float): Probabilidad base del riesgo (0-1).
+        exposicion_base (float): Exposición base del riesgo (0-1).
+        impacto_numerico_base (float): Impacto numérico base del riesgo (0-100).
         efectividad_base_pct (float): Efectividad del control base en porcentaje (0-100).
-        amenaza_deliberada_factor_base (float): Factor de amenaza deliberada (0 o 1).
-        ponderacion_impacto (float): Ponderación del tipo de impacto (0-100).
-        valor_economico (float): Valor económico del activo bajo riesgo en USD.
-        iteraciones (int, optional): Número de iteraciones para la simulación. Por defecto es 10000.
+        amenaza_deliberada_factor_base (float): 1.0 si es amenaza deliberada, 0.0 si no.
+        ponderacion_impacto (float): Ponderación del tipo de impacto (0-1).
+        valor_economico (float): Valor económico del activo afectado.
+        iteraciones (int): Número de iteraciones de la simulación.
 
     Returns:
-        tuple: Una tupla que contiene:
-               - riesgo_residual_sim (np.array): Array de los valores de riesgo residual simulados.
-               - perdidas_usd_sim (np.array): Array de las pérdidas económicas simuladas en USD.
-               - correlations (pd.Series or None): Series de pandas con las correlaciones de Pearson
-                                                   entre los factores de riesgo y la pérdida económica.
-                                                   None si no hay datos para correlacionar.
+        tuple: (np.array de riesgos residuales simulados, np.array de pérdidas económicas simuladas, pd.DataFrame de correlaciones)
     """
-    if valor_economico <= 0:
-        return np.array([]), np.array([]), None # Retornar arrays vacíos si el valor económico es 0 o negativo
+    # Convertir efectividad_base_pct a un factor decimal
+    efectividad_base = efectividad_base_pct / 100.0
 
-    try:
-        # Convertir efectividad de porcentaje a factor
-        efectividad_base = efectividad_base_pct / 100.0
-        
-        # Parámetros de variabilidad para cada factor (desviación estándar)
-        # Ajustar sigmas según la incertidumbre deseada
-        sigma_probabilidad = 0.1 # Pequeña variabilidad para probabilidades
-        sigma_exposicion = 0.1
-        sigma_impacto_norm = 0.05 # Menor variabilidad para impacto ya normalizado 0-1
-        sigma_efectividad = 0.1
-        # sigma_amenaza_deliberada = 0 # Normalmente binario, no se simula variabilidad aquí
+    # Generar valores aleatorios para cada variable con una pequeña variabilidad
+    # Usamos una desviación estándar pequeña para simular incertidumbre.
+    # Los valores simulados se clipan para asegurar que se mantengan en rangos lógicos.
+    probabilidades_sim = np.random.normal(probabilidad_base, probabilidad_base * 0.1, iteraciones)
+    probabilidades_sim = np.clip(probabilidades_sim, 0.01, 0.99)
 
-        # Transformamos el impacto numérico base (0-100) en un porcentaje del valor económico
-        factor_perdida_base = impacto_numerico_base / 100.0
+    exposiciones_sim = np.random.normal(exposicion_base, exposicion_base * 0.1, iteraciones)
+    exposiciones_sim = np.clip(exposiciones_sim, 0.01, 0.99)
 
-        # Definimos un rango de incertidumbre para este factor de pérdida monetaria.
-        sigma_factor_perdida = 0.20 * factor_perdida_base
-        if sigma_factor_perdida == 0 and factor_perdida_base > 0: # Evitar sigma 0 si hay impacto
-            sigma_factor_perdida = 0.05 # Mínima variabilidad si el impacto es bajo pero existente
-        elif factor_perdida_base == 0:
-            sigma_factor_perdida = 0 # No hay variabilidad si no hay impacto base
+    # Variación del impacto numérico en una escala de 0-100
+    impactos_num_sim = np.random.normal(impacto_numerico_base, 5, iteraciones) # +/- 5 puntos
+    impactos_num_sim = np.clip(impactos_num_sim, 0, 100)
 
-        # Arrays para almacenar los resultados de la simulación
-        riesgo_residual_sim = np.zeros(iteraciones)
-        perdidas_usd_sim = np.zeros(iteraciones)
+    # Variación de la efectividad del control en una escala de 0-1 (factor)
+    efectividades_sim = np.random.normal(efectividad_base, 0.05, iteraciones) # +/- 0.05
+    efectividades_sim = np.clip(efectividades_sim, 0, 0.99)
 
-        for i in range(iteraciones):
-            # Generar valores aleatorios para cada parámetro usando una distribución normal
-            # y asegurándose de que estén dentro de rangos lógicos [0,1] o [1,100]
-            probabilidad_sim = np.clip(np.random.normal(probabilidad_base, sigma_probabilidad), 0.01, 1.0)
-            exposicion_sim = np.clip(np.random.normal(exposicion_base, sigma_exposicion), 0.01, 1.0)
-            efectividad_sim = np.clip(np.random.normal(efectividad_base, sigma_efectividad), 0.0, 1.0)
+    # La amenaza deliberada se mantiene constante para la simulación, ya que es binaria
+    amenaza_deliberada_sim = np.full(iteraciones, amenaza_deliberada_factor_base)
 
-            # Simular el factor de pérdida monetaria
-            sim_factor_perdida = np.clip(np.random.normal(factor_perdida_base, sigma_factor_perdida), 0.0, 1.0)
-            
-            # Recalcular impacto_norm para la simulación
-            # Usamos el factor de pérdida simulado como el impacto_norm para la fórmula
-            impacto_norm_sim = sim_factor_perdida
+    # Simulación de riesgos residuales y pérdidas
+    riesgos_residuales_simulados = []
+    for i in range(iteraciones):
+        # Recalcular amenaza inherente con valores simulados
+        amenaza_inherente_sim = probabilidades_sim[i] * exposiciones_sim[i] * \
+                                (impactos_num_sim[i] / 100.0) * ponderacion_impacto
 
-            # Amenaza deliberada se mantiene base o se puede introducir una probabilidad binaria
-            amenaza_deliberada_sim = amenaza_deliberada_factor_base # Asumimos que no varía en la simulación a menos que se indique
+        # Amenaza residual inicial (considerando amenaza deliberada)
+        amenaza_residual_inicial_sim = amenaza_inherente_sim * (1 + amenaza_deliberada_sim[i])
 
-            # Reutilizar la lógica de cálculo de riesgo con los valores simulados
-            amenaza_inherente_sim = probabilidad_sim * exposicion_sim
-            amenaza_residual_sim = amenaza_inherente_sim * (1 - efectividad_sim)
-            amenaza_residual_ajustada_sim = amenaza_residual_sim * (1 + amenaza_deliberada_sim)
-            
-            # Calcular el riesgo residual simulado
-            riesgo_residual_iter = amenaza_residual_ajustada_sim * impacto_norm_sim * (ponderacion_impacto / 100.0)
-            riesgo_residual_sim[i] = np.clip(riesgo_residual_iter, 0, 1)
+        # Amenaza residual ajustada (considerando efectividad del control)
+        amenaza_residual_ajustada_sim = amenaza_residual_inicial_sim * (1 - efectividades_sim[i])
 
-            # Calcular la pérdida económica simulada
-            perdidas_usd_sim[i] = riesgo_residual_sim[i] * valor_economico # El riesgo residual es un índice de criticidad que se aplica al valor económico
+        # Riesgo Residual Final (escalado a 0-100)
+        riesgo_residual_val_sim = amenaza_residual_ajustada_sim * 100
+        riesgos_residuales_simulados.append(np.clip(riesgo_residual_val_sim, 0, 100)) # Asegurar clipado
 
-        # Calcular correlaciones para análisis de sensibilidad
-        df_sim = pd.DataFrame({
-            'probabilidad': np.array([np.random.normal(probabilidad_base, sigma_probabilidad) for _ in range(iteraciones)]),
-            'exposicion': np.array([np.random.normal(exposicion_base, sigma_exposicion) for _ in range(iteraciones)]),
-            'impacto_norm': np.array([np.random.normal(factor_perdida_base, sigma_factor_perdida) for _ in range(iteraciones)]),
-            'efectividad': np.array([np.random.normal(efectividad_base, sigma_efectividad) for _ in range(iteraciones)]),
-            'perdida_usd': perdidas_usd_sim
-        })
-        
-        # Calcular correlaciones de Pearson con la pérdida económica
-        # Asegurarse de que las columnas tengan varianza para calcular correlación
-        valid_cols = [col for col in ['probabilidad', 'exposicion', 'impacto_norm', 'efectividad'] if df_sim[col].std() > 0]
-        
-        if valid_cols:
-            correlations = df_sim[valid_cols + ['perdida_usd']].corr(method='pearson')['perdida_usd'].drop('perdida_usd').abs().sort_values(ascending=False)
-        else:
-            correlations = pd.Series(dtype=float) # No hay columnas válidas para correlación
+    riesgos_simulados_array = np.array(riesgos_residuales_simulados)
+    perdidas_simuladas_array = riesgos_simulados_array / 100 * valor_economico # Escalar riesgo a 0-1 y multiplicar por valor económico
 
-        return riesgo_residual_sim, perdidas_usd_sim, correlations
+    # --- Análisis de Sensibilidad (Correlaciones) ---
+    # Crear un DataFrame con las variables de entrada y el resultado simulado
+    data_for_correlation = pd.DataFrame({
+        'Probabilidad': probabilidades_sim,
+        'Exposicion': exposiciones_sim,
+        'Impacto Numerico': impactos_num_sim,
+        'Efectividad Control': efectividades_sim,
+        'Amenaza Deliberada': amenaza_deliberada_sim, # Aunque sea constante, se incluye para completar
+        'Riesgo Residual': riesgos_simulados_array
+    })
 
-    except Exception as e:
-        print(f"Error en simular_montecarlo: {e}")
-        return np.array([]), np.array([]), None # Retornar arrays vacíos y None para correlaciones
+    # Calcular la correlación de Pearson entre cada variable de entrada y el Riesgo Residual
+    correlaciones_list = []
+    variables_input = ['Probabilidad', 'Exposicion', 'Impacto Numerico', 'Efectividad Control', 'Amenaza Deliberada']
+    for var in variables_input:
+        if var in data_for_correlation.columns:
+            # pearsonr devuelve (correlacion, p-value), solo necesitamos la correlacion
+            corr_val = pearsonr(data_for_correlation[var], data_for_correlation['Riesgo Residual'])[0]
+            correlaciones_list.append({'Variable': var, 'Correlacion': corr_val})
+
+    # Crear el DataFrame de correlaciones
+    correlaciones_df = pd.DataFrame(correlaciones_list)
+
+    return riesgos_simulados_array, perdidas_simuladas_array, correlaciones_df
