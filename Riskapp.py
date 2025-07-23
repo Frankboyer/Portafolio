@@ -956,7 +956,4 @@ with col_graf:
         col_mc1, col_mc2 = st.columns(2)
         with col_mc1:
             st.markdown(f"<div class='metric-box'><h3>{get_text('expected_loss')}</h3><p>${np.mean(perdidas):,.2f}</p></div>", unsafe_allow_html=True)
-            st.markdown(f"<div class='metric-box'><h3>{get_text('median_l
-   
-    
-    
+           st.markdown(f"<div class='metric-box'><h3>{get_text('median_value')}</h3></div>", unsafe_allow_html=True)
