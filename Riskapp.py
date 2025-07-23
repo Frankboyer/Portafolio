@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+import matplotlib.pyplot as plt # Mantener si lo usas en alguna parte, aunque ya no en los histogramas
+                                # Si no lo usas para nada más, puedes eliminarlo.
 
 # Importar desde los módulos locales
 from data_config import tabla_tipo_impacto, matriz_probabilidad, matriz_impacto, factor_exposicion, factor_probabilidad, efectividad_controles, criticidad_límites, textos
@@ -119,12 +119,6 @@ if 'deliberate_threat_checkbox' not in st.session_state:
 def get_text(key):
     """
     Obtiene el texto correspondiente a una clave en el idioma actual de la sesión.
-
-    Args:
-        key (str): La clave del texto a buscar en el diccionario 'textos'.
-
-    Returns:
-        str: El texto en el idioma configurado, o la clave si no se encuentra el texto.
     """
     return textos[st.session_state.idioma].get(key, key)
 
@@ -263,8 +257,6 @@ with st.form("risk_form", clear_on_submit=False):
     # Botón de envío del formulario, ahora con un callback
     st.form_submit_button(get_text("add_risk_button"), on_click=handle_form_submit)
 
-# ... (El resto de tu código de visualización de riesgos, cuadrante, Pareto, Monte Carlo, etc. se mantiene igual) ...
-
 # --- 2. Visualización de Riesgos ---
 st.markdown("---")
 st.header(get_text("risk_list_title"))
@@ -310,7 +302,7 @@ if st.session_state.riesgos.empty:
 else:
     heatmap_fig = create_heatmap(st.session_state.riesgos, matriz_probabilidad, matriz_impacto, st.session_state.idioma)
     if heatmap_fig:
-        st.plotly_chart(heatmap_fig, use_container_width=True)
+        st.plotly_chart(heatmap_fig, use_container_width=True) # <-- CAMBIO CLAVE AQUÍ
     else:
         st.warning(get_text("heatmap_error"))
 
@@ -396,8 +388,8 @@ else:
                             get_text("risk_value_label"),
                             st.session_state.idioma
                         )
-                        st.pyplot(fig_riesgo)
-                        plt.close(fig_riesgo)
+                        st.plotly_chart(fig_riesgo) # <-- CAMBIO CLAVE AQUÍ
+                        # plt.close(fig_riesgo) # Ya no es necesario para figuras de Plotly
 
                     with col_results2:
                         st.subheader(get_text("simulated_economic_losses"))
@@ -407,15 +399,15 @@ else:
                             get_text("losses_value_label"),
                             st.session_state.idioma
                         )
-                        st.pyplot(fig_perdida)
-                        plt.close(fig_perdida)
+                        st.plotly_chart(fig_perdida) # <-- CAMBIO CLAVE AQUÍ
+                        # plt.close(fig_perdida) # Ya no es necesario para figuras de Plotly
 
                     st.markdown("---")
                     st.subheader(get_text("sensitivity_analysis_title"))
                     st.info(get_text("sensitivity_analysis_info"))
                     if correlaciones is not None and not correlaciones.empty:
                         sensitivity_fig = create_sensitivity_plot(correlaciones, st.session_state.idioma)
-                        st.plotly_chart(sensitivity_fig, use_container_width=True)
+                        st.plotly_chart(sensitivity_fig, use_container_width=True) # <-- CAMBIO CLAVE AQUÍ
                     else:
                         st.warning(get_text("no_sensitivity_data"))
                 else:
