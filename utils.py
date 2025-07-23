@@ -1,12 +1,17 @@
 import streamlit as st
 import pandas as pd
-from data_config import criticidad_límites # Asegúrate de importar esto
+# Asegúrate de que esta importación sea correcta y la ruta a data_config.py sea accesible
+from data_config import criticidad_límites
 
 def reset_form_fields():
     """
     Reinicia los campos de entrada del formulario de riesgo a sus valores por defecto.
     Esto se usa comúnmente después de agregar o editar un riesgo para limpiar la UI.
     También asegura que el estado de edición actual se reinicie.
+    
+    Esta función asume que las claves de st.session_state que corresponden a los
+    campos del formulario ya han sido inicializadas al inicio de riskapp.py
+    con un valor por defecto.
     """
     st.session_state['risk_name_input'] = ""
     st.session_state['risk_description_input'] = ""
@@ -38,13 +43,14 @@ def format_risk_dataframe(df_risks, idioma="es"):
         return df_risks
 
     def get_color(val):
-        """Función interna para obtener el color basado en el valor de riesgo residual."""
+        """Función interna para obtener el color de fondo basado en el valor de riesgo residual."""
+        # Itera sobre los límites de criticidad definidos en data_config.py
         for v_min, v_max, _, color, _ in criticidad_límites:
             if v_min <= val <= v_max:
                 return f'background-color: {color};'
-        return ''
+        return '' # Retorna vacío si no hay color asociado
 
-    # Aplicar el estilo a la columna 'Riesgo Residual'
+    # Aplica la función get_color a la columna 'Riesgo Residual'
     styled_df = df_risks.style.applymap(get_color, subset=['Riesgo Residual'])
 
     return styled_df
