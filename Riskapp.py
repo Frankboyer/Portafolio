@@ -7,7 +7,7 @@ import numpy as np
 from data_config import tabla_tipo_impacto, matriz_probabilidad, matriz_impacto, factor_exposicion, factor_probabilidad, efectividad_controles, criticidad_límites, textos, factores_amenaza_deliberada
 from calculations import clasificar_criticidad, calcular_criticidad, simular_montecarlo
 from plotting import create_heatmap, create_pareto_chart, plot_montecarlo_histogram, create_sensitivity_plot
-from utils import reset_form_fields, format_risk_dataframe
+from utils import format_risk_dataframe # Solo importamos lo que se usa
 
 # --- Configuración de la página ---
 st.set_page_config(layout="wide", page_title="Calculadora de Riesgos", page_icon="🛡️")
@@ -36,7 +36,7 @@ st.markdown("""
         background-color: #0056b3;
     }
     .stTextInput>div>div>input, .stTextArea>div>div>textarea, .stSelectbox>div>div>select {
-        border-radius: 5_px;
+        border-radius: 5px;
         border: 1px solid #ced4da;
         padding: 8px 12px;
     }
@@ -105,7 +105,9 @@ if 'default_impacto_numerico' not in st.session_state:
 if 'default_control_effectiveness' not in st.session_state:
     st.session_state['default_control_effectiveness'] = 50
 
-# Claves reales de widgets para asegurar persistencia
+# Claves reales de widgets para asegurar persistencia (solo se inicializan si no están en session_state)
+# NOTA: Al usar clear_on_submit=True, Streamlit reseteará automáticamente los valores del formulario.
+#       Estas inicializaciones son principalmente para cuando se carga la página por primera vez o se edita.
 if 'risk_name_input' not in st.session_state:
     st.session_state['risk_name_input'] = ""
 if 'risk_description_input' not in st.session_state:
@@ -198,7 +200,7 @@ def handle_form_submit():
             st.success(get_text("success_risk_added"))
 
         st.session_state.current_edit_index = -1 # Salir del modo edición
-        reset_form_fields() # Resetear los campos del formulario
+        # YA NO LLAMES A reset_form_fields() AQUÍ
         st.experimental_rerun() # Recargar la app para mostrar los cambios
 
 
@@ -289,10 +291,11 @@ st.markdown("---") # Separador visual
 
 # --- Formulario de entrada ---
 st.header(get_text("risk_input_form_title"))
-with st.form("risk_form", clear_on_submit=False):
-    # Lógica de carga para edición
+# ¡CAMBIO CLAVE AQUÍ: clear_on_submit=True y se elimina la llamada a reset_form_fields()!
+with st.form("risk_form", clear_on_submit=True):
+    # Lógica de carga para edición (Esta lógica se ejecuta en cada rerun,
+    # y los valores cargados sobrescribirán los de clear_on_submit si current_edit_index != -1)
     if st.session_state.current_edit_index != -1:
-        # Asegurarse de que el índice exista en el DataFrame
         risk_to_edit_df = st.session_state.riesgos[st.session_state.riesgos['ID'] == st.session_state.current_edit_index]
         if not risk_to_edit_df.empty:
             risk_to_edit = risk_to_edit_df.iloc[0]
@@ -318,16 +321,16 @@ with st.form("risk_form", clear_on_submit=False):
             # Asegurarse de que el valor inicial sea válido para el selectbox
             current_level_index = deliberate_threat_level_options.index(st.session_state['deliberate_threat_level_selectbox']) if st.session_state['deliberate_threat_level_selectbox'] in deliberate_threat_level_options else 0
 
+            # Si estamos editando y la amenaza deliberada estaba marcada, habilitamos el selectbox
             if st.session_state['deliberate_threat_present_checkbox']:
                 st.selectbox(
                     get_text("risk_deliberate_threat_level"),
                     deliberate_threat_level_options,
-                    index=current_level_index,
+                    index=deliberate_threat_level_options.index(risk_to_edit['Nivel Amenaza Deliberada']) if risk_to_edit['Nivel Amenaza Deliberada'] in deliberate_threat_level_options else 0, # Cargar el valor del riesgo
                     key="deliberate_threat_level_selectbox"
                 )
             else:
                 # Si el checkbox no está marcado, forzamos el selectbox a 'No' y lo deshabilitamos
-                # Asegurarse de que 'No' sea una opción válida antes de intentar acceder a su índice
                 no_index = deliberate_threat_level_options.index('No') if 'No' in deliberate_threat_level_options else 0
                 st.session_state['deliberate_threat_level_selectbox'] = 'No' # Asegura que el valor sea 'No'
                 st.selectbox(
@@ -337,7 +340,6 @@ with st.form("risk_form", clear_on_submit=False):
                     key="deliberate_threat_level_selectbox",
                     disabled=True # Deshabilita el selectbox
                 )
-
         else:
             st.session_state.current_edit_index = -1 # Reset si el riesgo a editar no se encuentra
 
@@ -367,23 +369,25 @@ with st.form("risk_form", clear_on_submit=False):
         st.slider(get_text("risk_impact_numeric"), 0, 100, value=st.session_state['impacto_numerico_slider'], key="impacto_numerico_slider")
         st.slider(get_text("risk_control_effectiveness"), 0, 100, value=st.session_state['control_effectiveness_slider'], key="control_effectiveness_slider")
 
+        # El checkbox para amenaza deliberada
         st.checkbox(get_text("risk_deliberate_threat_present"), key="deliberate_threat_present_checkbox")
 
         deliberate_threat_level_options = factores_amenaza_deliberada['Clasificacion'].tolist()
 
         # Asegurarse de que el valor inicial sea válido para el selectbox
-        current_level_index = deliberate_threat_level_options.index(st.session_state['deliberate_threat_level_selectbox']) if st.session_state['deliberate_threat_level_selectbox'] in deliberate_threat_level_options else 0
+        # Esto es importante para el comportamiento cuando el checkbox se desmarca
+        current_level_index_threat = deliberate_threat_level_options.index(st.session_state['deliberate_threat_level_selectbox']) if st.session_state['deliberate_threat_level_selectbox'] in deliberate_threat_level_options else 0
 
+        # Controlar el estado del selectbox de nivel de amenaza deliberada
         if st.session_state['deliberate_threat_present_checkbox']:
             st.selectbox(
                 get_text("risk_deliberate_threat_level"),
                 deliberate_threat_level_options,
-                index=current_level_index,
+                index=current_level_index_threat,
                 key="deliberate_threat_level_selectbox"
             )
         else:
             # Si el checkbox no está marcado, forzamos el selectbox a 'No' y lo deshabilitamos
-            # Asegurarse de que 'No' sea una opción válida antes de intentar acceder a su índice
             no_index = deliberate_threat_level_options.index('No') if 'No' in deliberate_threat_level_options else 0
             st.session_state['deliberate_threat_level_selectbox'] = 'No' # Asegura que el valor sea 'No'
             st.selectbox(
