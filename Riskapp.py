@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 
 # Importar desde los módulos locales
+# Asegúrate de que estos archivos estén en la misma carpeta.
 from data_config import tabla_tipo_impacto, matriz_probabilidad, matriz_impacto, factor_exposicion, factor_probabilidad, efectividad_controles, criticidad_límites, textos, factores_amenaza_deliberada
 from calculations import clasificar_criticidad, calcular_criticidad, simular_montecarlo
 from plotting import create_heatmap, create_pareto_chart, plot_montecarlo_histogram, create_sensitivity_plot
@@ -35,7 +36,7 @@ st.markdown("""
         background-color: #0056b3;
     }
     .stTextInput>div>div>input, .stTextArea>div>div>textarea, .stSelectbox>div>div>select {
-        border-radius: 5px;
+        border-radius: 5_px;
         border: 1px solid #ced4da;
         padding: 8px 12px;
     }
@@ -105,7 +106,6 @@ if 'default_control_effectiveness' not in st.session_state:
     st.session_state['default_control_effectiveness'] = 50
 
 # Claves reales de widgets para asegurar persistencia
-# Solo inicializar si no están ya en session_state (e.g. después de un rerun causado por un botón)
 if 'risk_name_input' not in st.session_state:
     st.session_state['risk_name_input'] = ""
 if 'risk_description_input' not in st.session_state:
@@ -202,93 +202,90 @@ def handle_form_submit():
         st.experimental_rerun() # Recargar la app para mostrar los cambios
 
 
-# --- Sidebar ---
-with st.sidebar:
-    st.header(get_text("language_select"))
-    language_options = {'es': 'Español', 'en': 'English'}
-    selected_language = st.selectbox("Choose Language", options=list(language_options.keys()), format_func=lambda x: language_options[x], key="language_selector")
-    if selected_language != st.session_state.idioma:
-        st.session_state.idioma = selected_language
-        st.experimental_rerun() # Recargar la página para cambiar el idioma
+# --- Control de Idioma (ahora en la parte superior del cuerpo principal) ---
+st.header(get_text("language_select"))
+language_options = {'es': 'Español', 'en': 'English'}
+selected_language = st.selectbox("Choose Language", options=list(language_options.keys()), format_func=lambda x: language_options[x], key="language_selector")
+if selected_language != st.session_state.idioma:
+    st.session_state.idioma = selected_language
+    st.experimental_rerun() # Recargar la página para cambiar el idioma
 
-    st.markdown("---")
-    st.header(get_text("matrix_title"))
-
-    # --- Matriz de Probabilidad ---
-    st.subheader(get_text("matrix_prob_col"))
-    required_cols_prob = ['Clasificacion', 'Factor', 'Justificacion']
-    if matriz_probabilidad is not None and not matriz_probabilidad.empty and all(col in matriz_probabilidad.columns for col in required_cols_prob):
-        df_prob_display = matriz_probabilidad[required_cols_prob].rename(
-            columns={'Clasificacion': get_text("matrix_prob_col"), 'Factor': get_text("matrix_factor_col"), 'Justificacion': get_text("matrix_justification_col")}
-        )
-        st.write("--- Depurando matriz_probabilidad ---")
-        st.write(f"Tipo de df_prob_display: {type(df_prob_display)}")
-        st.write(f"¿df_prob_display está vacío? {df_prob_display.empty}")
-        st.write(f"Columnas de df_prob_display: {df_prob_display.columns.tolist()}")
-        st.write("Primeras filas de df_prob_display:")
-        st.dataframe(df_prob_display.head(), hide_row_index=True) # Muestra las primeras filas para revisar el contenido
-        st.write("--- Fin de Depuración ---")
-        st.dataframe(df_prob_display, hide_row_index=True) # Línea 223 o similar
-    else:
-        st.error("Error: La matriz de probabilidad no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas como 'Clasificacion', 'Factor', 'Justificacion'). Por favor, verifica el archivo 'data_config.py'.")
-        if matriz_probabilidad is not None:
-            st.write("Columnas disponibles en matriz_probabilidad:", matriz_probabilidad.columns.tolist())
-
-    # --- Ponderaciones de Tipo de Impacto ---
-    st.subheader(get_text("matrix_impact_type_title"))
-    required_cols_impact_type = ['Tipo de Impacto', 'Ponderación', 'Justificación Técnica']
-    if tabla_tipo_impacto is not None and not tabla_tipo_impacto.empty and all(col in tabla_tipo_impacto.columns for col in required_cols_impact_type):
-        df_impact_type_display = tabla_tipo_impacto[required_cols_impact_type].rename(
-            columns={'Tipo de Impacto': get_text("risk_type_impact"), 'Ponderación': get_text("matrix_factor_col"), 'Justificación Técnica': get_text("matrix_justification_col")}
-        )
-        st.dataframe(df_impact_type_display, hide_row_index=True)
-    else:
-        st.error("Error: La tabla de tipos de impacto no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas). Por favor, verifica el archivo 'data_config.py'.")
-        if tabla_tipo_impacto is not None:
-            st.write("Columnas disponibles en tabla_tipo_impacto:", tabla_tipo_impacto.columns.tolist())
-
-    # --- Factores de Exposición ---
-    st.subheader(get_text("matrix_exposure_title"))
-    required_cols_exposure = ['Clasificacion', 'Factor']
-    if factor_exposicion is not None and not factor_exposicion.empty and all(col in factor_exposicion.columns for col in required_cols_exposure):
-        df_exposure_display = factor_exposicion[required_cols_exposure].rename(
-            columns={'Clasificacion': get_text("matrix_exposure_title"), 'Factor': get_text("matrix_factor_col")}
-        )
-        st.dataframe(df_exposure_display, hide_row_index=True)
-    else:
-        st.error("Error: La tabla de factores de exposición no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas). Por favor, verifica el archivo 'data_config.py'.")
-        if factor_exposicion is not None:
-            st.write("Columnas disponibles en factor_exposicion:", factor_exposicion.columns.tolist())
-
-    # --- Factores de Amenaza Deliberada ---
-    st.subheader(get_text("matrix_threat_title"))
-    required_cols_threat = ['Clasificacion', 'Factor']
-    if factores_amenaza_deliberada is not None and not factores_amenaza_deliberada.empty and all(col in factores_amenaza_deliberada.columns for col in required_cols_threat):
-        df_threat_display = factores_amenaza_deliberada[required_cols_threat].rename(
-            columns={'Clasificacion': get_text("matrix_threat_title"), 'Factor': get_text("matrix_factor_col")}
-        )
-        st.dataframe(df_threat_display, hide_row_index=True)
-    else:
-        st.error("Error: La tabla de factores de amenaza deliberada no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas). Por favor, verifica el archivo 'data_config.py'.")
-        if factores_amenaza_deliberada is not None:
-            st.write("Columnas disponibles en factores_amenaza_deliberada:", factores_amenaza_deliberada.columns.tolist())
-
-    # --- Factores de Efectividad de Control ---
-    st.subheader(get_text("matrix_control_title"))
-    required_cols_control = ['Clasificacion', 'Factor']
-    if efectividad_controles is not None and not efectividad_controles.empty and all(col in efectividad_controles.columns for col in required_cols_control):
-        df_control_display = efectividad_controles[required_cols_control].rename(
-            columns={'Clasificacion': get_text("matrix_control_title"), 'Factor': get_text("matrix_factor_col")}
-        )
-        st.dataframe(df_control_display, hide_row_index=True)
-    else:
-        st.error("Error: La tabla de efectividad de controles no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas). Por favor, verifica el archivo 'data_config.py'.")
-        if efectividad_controles is not None:
-            st.write("Columnas disponibles en efectividad_controles:", efectividad_controles.columns.tolist())
-
+st.markdown("---")
 
 # --- Título ---
 st.title(get_text("app_title"))
+
+# --- Matrices y Factores (Ahora en el cuerpo principal) ---
+st.header(get_text("matrix_title"))
+
+# --- Matriz de Probabilidad ---
+st.subheader(get_text("matrix_prob_col"))
+required_cols_prob = ['Clasificacion', 'Factor', 'Justificacion']
+
+if matriz_probabilidad is None or matriz_probabilidad.empty:
+    st.error("Error: La matriz de probabilidad original ('matriz_probabilidad' en data_config.py) está vacía o es None. Por favor, verifica el archivo 'data_config.py'.")
+elif not all(col in matriz_probabilidad.columns for col in required_cols_prob):
+    st.error(f"Error: La matriz de probabilidad original no contiene todas las columnas esperadas ({required_cols_prob}). Columnas disponibles: {matriz_probabilidad.columns.tolist()}. Por favor, verifica el archivo 'data_config.py'.")
+else:
+    df_prob_display = matriz_probabilidad[required_cols_prob].rename(
+        columns={'Clasificacion': get_text("matrix_prob_col"), 'Factor': get_text("matrix_factor_col"), 'Justificacion': get_text("matrix_justification_col")}
+    )
+    st.table(df_prob_display) # Usamos st.table para toda la tabla
+
+
+# --- Ponderaciones de Tipo de Impacto ---
+st.subheader(get_text("matrix_impact_type_title"))
+required_cols_impact_type = ['Tipo de Impacto', 'Ponderación', 'Justificación Técnica']
+if tabla_tipo_impacto is not None and not tabla_tipo_impacto.empty and all(col in tabla_tipo_impacto.columns for col in required_cols_impact_type):
+    df_impact_type_display = tabla_tipo_impacto[required_cols_impact_type].rename(
+        columns={'Tipo de Impacto': get_text("risk_type_impact"), 'Ponderación': get_text("matrix_factor_col"), 'Justificación Técnica': get_text("matrix_justification_col")}
+    )
+    st.table(df_impact_type_display)
+else:
+    st.error("Error: La tabla de tipos de impacto no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas). Por favor, verifica el archivo 'data_config.py'.")
+    if tabla_tipo_impacto is not None:
+        st.write("Columnas disponibles en tabla_tipo_impacto:", tabla_tipo_impacto.columns.tolist())
+
+# --- Factores de Exposición ---
+st.subheader(get_text("matrix_exposure_title"))
+required_cols_exposure = ['Clasificacion', 'Factor']
+if factor_exposicion is not None and not factor_exposicion.empty and all(col in factor_exposicion.columns for col in required_cols_exposure):
+    df_exposure_display = factor_exposicion[required_cols_exposure].rename(
+        columns={'Clasificacion': get_text("matrix_exposure_title"), 'Factor': get_text("matrix_factor_col")}
+    )
+    st.table(df_exposure_display)
+else:
+    st.error("Error: La tabla de factores de exposición no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas). Por favor, verifica el archivo 'data_config.py'.")
+    if factor_exposicion is not None:
+        st.write("Columnas disponibles en factor_exposicion:", factor_exposicion.columns.tolist())
+
+# --- Factores de Amenaza Deliberada ---
+st.subheader(get_text("matrix_threat_title"))
+required_cols_threat = ['Clasificacion', 'Factor']
+if factores_amenaza_deliberada is not None and not factores_amenaza_deliberada.empty and all(col in factores_amenaza_deliberada.columns for col in required_cols_threat):
+    df_threat_display = factores_amenaza_deliberada[required_cols_threat].rename(
+        columns={'Clasificacion': get_text("matrix_threat_title"), 'Factor': get_text("matrix_factor_col")}
+    )
+    st.table(df_threat_display)
+else:
+    st.error("Error: La tabla de factores de amenaza deliberada no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas). Por favor, verifica el archivo 'data_config.py'.")
+    if factores_amenaza_deliberada is not None:
+        st.write("Columnas disponibles en factores_amenaza_deliberada:", factores_amenaza_deliberada.columns.tolist())
+
+# --- Factores de Efectividad de Control ---
+st.subheader(get_text("matrix_control_title"))
+required_cols_control = ['Clasificacion', 'Factor']
+if efectividad_controles is not None and not efectividad_controles.empty and all(col in efectividad_controles.columns for col in required_cols_control):
+    df_control_display = efectividad_controles[required_cols_control].rename(
+        columns={'Clasificacion': get_text("matrix_control_title"), 'Factor': get_text("matrix_factor_col")}
+    )
+    st.table(df_control_display)
+else:
+    st.error("Error: La tabla de efectividad de controles no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas). Por favor, verifica el archivo 'data_config.py'.")
+    if efectividad_controles is not None:
+        st.write("Columnas disponibles en efectividad_controles:", efectividad_controles.columns.tolist())
+
+st.markdown("---") # Separador visual
 
 # --- Formulario de entrada ---
 st.header(get_text("risk_input_form_title"))
@@ -316,11 +313,31 @@ with st.form("risk_form", clear_on_submit=False):
             st.session_state['control_effectiveness_slider'] = int(risk_to_edit["Efectividad del Control (%)"])
             st.session_state['deliberate_threat_present_checkbox'] = risk_to_edit["Amenaza Deliberada (Checkbox)"]
 
-            delib_threat_level_edit = risk_to_edit["Nivel Amenaza Deliberada"] if risk_to_edit["Nivel Amenaza Deliberada"] in factores_amenaza_deliberada['Clasificacion'].tolist() else st.session_state['default_amenaza_deliberada']
-            st.session_state['deliberate_threat_level_selectbox'] = delib_threat_level_edit
+            deliberate_threat_level_options = factores_amenaza_deliberada['Clasificacion'].tolist()
 
-            st.write(f"**{get_text('editing_risk')}**: {risk_to_edit['Nombre del Riesgo']}")
-            st.info(get_text('edit_in_form'))
+            # Asegurarse de que el valor inicial sea válido para el selectbox
+            current_level_index = deliberate_threat_level_options.index(st.session_state['deliberate_threat_level_selectbox']) if st.session_state['deliberate_threat_level_selectbox'] in deliberate_threat_level_options else 0
+
+            if st.session_state['deliberate_threat_present_checkbox']:
+                st.selectbox(
+                    get_text("risk_deliberate_threat_level"),
+                    deliberate_threat_level_options,
+                    index=current_level_index,
+                    key="deliberate_threat_level_selectbox"
+                )
+            else:
+                # Si el checkbox no está marcado, forzamos el selectbox a 'No' y lo deshabilitamos
+                # Asegurarse de que 'No' sea una opción válida antes de intentar acceder a su índice
+                no_index = deliberate_threat_level_options.index('No') if 'No' in deliberate_threat_level_options else 0
+                st.session_state['deliberate_threat_level_selectbox'] = 'No' # Asegura que el valor sea 'No'
+                st.selectbox(
+                    get_text("risk_deliberate_threat_level"),
+                    deliberate_threat_level_options,
+                    index=no_index,
+                    key="deliberate_threat_level_selectbox",
+                    disabled=True # Deshabilita el selectbox
+                )
+
         else:
             st.session_state.current_edit_index = -1 # Reset si el riesgo a editar no se encuentra
 
