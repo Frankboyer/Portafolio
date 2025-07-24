@@ -224,4 +224,67 @@ textos = {
         "simulation_for_risk": "Simulation for Risk",
         "economic_value_asset": "Economic Value of Affected Asset ($)",
         "num_montecarlo_iterations": "Number of Monte Carlo Iterations",
-        "run_montecarlo_
+        "run_montecarlo_button": "Run Monte Carlo Simulation",
+        "economic_value_positive": "Please enter a positive economic value.",
+        "running_simulation": "Running simulation... This may take a few seconds.",
+        "simulation_complete": "Simulation complete.",
+        "simulation_failed": "No data for simulation or simulation failed.",
+        "add_risks_for_montecarlo": "Add risks to run a Monte Carlo simulation.",
+        "select_risk_to_start_mc": "Select a risk to start the Monte Carlo simulation.",
+
+        "simulated_risk_distribution": "Simulated Residual Risk Distribution",
+        "histogram_risk_title": "Residual Risk Histogram",
+        "risk_value_label": "Residual Risk Value",
+        "frequency_label": "Frequency",
+        "simulated_economic_losses": "Simulated Economic Losses",
+        "histogram_losses_title": "Economic Losses Histogram",
+        "losses_value_label": "Economic Losses ($)",
+
+        "sensitivity_analysis_title": "Sensitivity Analysis (Correlation)",
+        "correlation_title": "Pearson Correlation with Residual Risk",
+        "correlation_x_axis": "Correlacion",
+        "correlation_y_axis": "Input Variable",
+
+        "matrix_title": "Probability and Impact Matrix",
+        "matrix_prob_col": "Probability Classification",
+        "matrix_impact_col": "Impact Classification",
+        "matrix_factor_col": "Factor",
+        "matrix_justification_col": "Justification",
+        "matrix_exposure_title": "Exposure Factors",
+        "matrix_threat_title": "Deliberate Threat Factors",
+        "matrix_control_title": "Control Effectiveness Factors",
+        "matrix_impact_type_title": "Impact Type Weightings",
+
+        "mc_risk_name": "Risk Name",
+        "mc_type_impact": "Type of Impact",
+        "mc_probability": "Probability",
+        "mc_exposure": "Exposure",
+        "mc_impact_numeric": "Numerical Impact",
+        "mc_control_effectiveness": "Control Effectiveness",
+        "mc_deliberate_threat": "Deliberate Threat",
+        "mc_current_residual_risk": "Current Residual Risk",
+        "yes": "Yes",
+        "no": "No",
+
+        # New texts for impact types
+        "impact_type_humanos": "Human",
+        "impact_type_ambiental": "Environmental",
+        "impact_type_financiero": "Financial",
+        "impact_type_reputacional": "Reputation",
+        "impact_type_operacional": "Operational",
+        "impact_type_economicos": "Economic",
+        "impact_type_comercial": "Commercial",
+        "impact_type_social": "Social",
+        "impact_type_infraestructura": "Infrastructure",
+
+        # New texts for deliberate threat levels
+        "no_deliberate_threat": "No",
+        "low_deliberate_threat": "Low",
+        "moderate_deliberate_threat": "Moderate",
+        "high_deliberate_threat": "High",
+    }
+}
+
+# Función para obtener texto del diccionario (para usar en otros módulos si es necesario)
+def get_text_data_config(key, idioma='es'):
+    return textos[idioma].get(key, key)
