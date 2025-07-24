@@ -1,17 +1,5 @@
-pandas
-numpy
-streamlit
-matplotlib
-seaborn
-plotly
-scipy
-streamlit==1.35.0 
-pandas==2.2.2
-numpy==1.26.4
-plotly==5.22.0
-openpyxl 
 streamlit==1.28.0
 pandas==2.2.2
 numpy==1.26.4
 plotly==5.22.0
-openpyxl # Mantén esto si tu archivo data_config.py lee archivos de Excel (.xlsx)
+openpyxl
