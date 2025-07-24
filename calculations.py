@@ -1,9 +1,7 @@
-# calculations.py
-
 import pandas as pd
 import numpy as np
-from scipy.stats import norm, pearsonr
-from data_config import criticidad_límites, factores_amenaza_deliberada # Asegúrate de importar factores_amenaza_deliberada aquí también
+from scipy.stats import pearsonr
+from data_config import criticidad_límites, factores_amenaza_deliberada
 
 # --- Funciones de Cálculo ---
 
@@ -28,25 +26,21 @@ def calcular_criticidad(probabilidad, exposicion, nivel_amenaza_deliberada_str, 
 
     # Obtener el factor de amenaza deliberada
     if es_amenaza_deliberada_checkbox:
-        # Si el checkbox está marcado, usamos el factor del nivel seleccionado
         amenaza_deliberada_factor_val = factores_amenaza_deliberada[factores_amenaza_deliberada['Clasificacion'] == nivel_amenaza_deliberada_str]['Factor'].iloc[0]
     else:
-        # Si el checkbox NO está marcado, el factor es 0.0 sin importar el selectbox
         amenaza_deliberada_factor_val = 0.0
 
     amenaza_inherente = probabilidad * exposicion * (impacto_numerico / 100.0) * ponderacion_impacto
-    amenaza_residual = amenaza_inherente * (1 + amenaza_deliberada_factor_val) # Usa el nuevo factor
+    amenaza_residual = amenaza_inherente * (1 + amenaza_deliberada_factor_val)
     amenaza_residual_ajustada = amenaza_residual * (1 - efectividad_control)
     riesgo_residual = amenaza_residual_ajustada * 100
-    riesgo_residual = np.clip(riesgo_residual, 0, 100)
+    riesgo_residual = np.clip(riesgo_residual, 0, 100) # Asegura que el riesgo esté en el rango 0-100
     return amenaza_inherente, amenaza_residual, amenaza_residual_ajustada, riesgo_residual
 
 def clasificar_criticidad(valor_riesgo, idioma='es'):
     """
     Clasifica un valor de riesgo en una categoría de criticidad.
     """
-    # Importar aquí para asegurar acceso a criticidad_límites
-    # Ya se importó arriba, no es necesario aquí de nuevo.
     for min_val, max_val, clasificacion_es, color, clasificacion_en in criticidad_límites:
         if min_val <= valor_riesgo <= max_val:
             return (clasificacion_es if idioma == 'es' else clasificacion_en), color
@@ -88,13 +82,10 @@ def simular_montecarlo(probabilidad_base, exposicion_base, impacto_numerico_base
     efectividades_sim = np.clip(efectividades_sim, 0, 0.99)
 
     # Simular el factor de amenaza deliberada:
-    # Si el checkbox base está desmarcado, siempre es 0.0.
-    # Si está marcado, usamos el factor del nivel base, con una pequeña variabilidad si es necesario.
     if not es_amenaza_deliberada_checkbox_base:
         amenaza_deliberada_factores_sim = np.full(iteraciones, 0.0)
     else:
         base_factor = factores_amenaza_deliberada[factores_amenaza_deliberada['Clasificacion'] == nivel_amenaza_deliberada_str_base]['Factor'].iloc[0]
-        # Pequeña variabilidad solo si el factor base no es 0
         if base_factor > 0:
             amenaza_deliberada_factores_sim = np.random.normal(base_factor, base_factor * 0.1, iteraciones)
             amenaza_deliberada_factores_sim = np.clip(amenaza_deliberada_factores_sim, 0, factores_amenaza_deliberada['Factor'].max())
@@ -119,7 +110,7 @@ def simular_montecarlo(probabilidad_base, exposicion_base, impacto_numerico_base
         'Exposicion': exposiciones_sim,
         'Impacto Numerico': impactos_num_sim,
         'Efectividad Control': efectividades_sim,
-        'Amenaza Deliberada': amenaza_deliberada_factores_sim, # Usamos los factores simulados
+        'Amenaza Deliberada': amenaza_deliberada_factores_sim,
         'Riesgo Residual': riesgos_simulados_array
     })
 
@@ -127,11 +118,11 @@ def simular_montecarlo(probabilidad_base, exposicion_base, impacto_numerico_base
     variables_input = ['Probabilidad', 'Exposicion', 'Impacto Numerico', 'Efectividad Control', 'Amenaza Deliberada']
     for var in variables_input:
         if var in data_for_correlation.columns:
-            if data_for_correlation[var].nunique() > 1: # Solo calcular correlación si la variable varía
+            if data_for_correlation[var].nunique() > 1:
                 corr_val = pearsonr(data_for_correlation[var], data_for_correlation['Riesgo Residual'])[0]
                 correlaciones_list.append({'Variable': var, 'Correlacion': corr_val})
-            else: # Si la variable es constante, su correlación con cualquier otra variable es NaN o 0
-                correlaciones_list.append({'Variable': var, 'Correlacion': 0.0})
+            else:
+                correlaciones_list.append({'Variable': var, 'Correlacion': 0.0}) # Correlación 0 si la variable no varía
 
     correlaciones_df = pd.DataFrame(correlaciones_list)
 
