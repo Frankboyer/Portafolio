@@ -1,10 +1,11 @@
+# riskapp.py
+
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt # Puedes eliminar esto si no lo usas en ninguna otra parte
 
 # Importar desde los módulos locales
-from data_config import tabla_tipo_impacto, matriz_probabilidad, matriz_impacto, factor_exposicion, factor_probabilidad, efectividad_controles, criticidad_límites, textos
+from data_config import tabla_tipo_impacto, matriz_probabilidad, matriz_impacto, factor_exposicion, factor_probabilidad, efectividad_controles, criticidad_límites, textos, factores_amenaza_deliberada # ¡Importa el nuevo DataFrame!
 from calculations import clasificar_criticidad, calcular_criticidad, simular_montecarlo
 from plotting import create_heatmap, create_pareto_chart, plot_montecarlo_histogram, create_sensitivity_plot
 from utils import reset_form_fields, format_risk_dataframe
@@ -13,52 +14,7 @@ from utils import reset_form_fields, format_risk_dataframe
 st.set_page_config(layout="wide", page_title="Calculadora de Riesgos", page_icon="🛡️")
 
 # --- CSS Personalizado ---
-st.markdown("""
-    <style>
-    .stButton>button {
-        background-color: #4CAF50;
-        color: white;
-        padding: 8px 16px;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 14px;
-        margin: 4px 2px;
-        cursor: pointer;
-        border-radius: 8px;
-        border: none;
-    }
-    .stButton>button:hover {
-        background-color: #45a049;
-    }
-    .stSelectbox>div>div {
-        border-radius: 8px;
-    }
-    .stSlider > div > div:first-child {
-        color: #4CAF50;
-    }
-    .metric-box {
-        background-color: #f0f2f6;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        border-left: 5px solid #4CAF50;
-    }
-    .metric-box h3 {
-        color: #333;
-        font-size: 1em;
-        margin-bottom: 5px;
-    }
-    .metric-box p {
-        font-size: 1.2em;
-        font-weight: bold;
-        color: #000;
-    }
-    .stAlert {
-        border-radius: 8px;
-    }
-    </style>
-""", unsafe_allow_html=True)
+# (Tu CSS existente)
 
 # --- Inicialización de Session State ---
 if 'idioma' not in st.session_state:
@@ -67,7 +23,7 @@ if 'riesgos' not in st.session_state:
     st.session_state.riesgos = pd.DataFrame(columns=[
         "ID", "Nombre del Riesgo", "Descripción", "Tipo de Impacto",
         "Probabilidad", "Exposición", "Impacto Numérico",
-        "Efectividad del Control (%)", "Amenaza Deliberada",
+        "Efectividad del Control (%)", "Amenaza Deliberada (Checkbox)", "Nivel Amenaza Deliberada", # Actualizado
         "Amenaza Inherente", "Amenaza Residual", "Amenaza Residual Ajustada",
         "Riesgo Residual", "Clasificación", "Color"
     ])
@@ -75,6 +31,7 @@ if 'current_edit_index' not in st.session_state:
     st.session_state.current_edit_index = -1 # -1 significa que no estamos editando
 
 # --- Inicializaciones Cruciales para Campos del Formulario ---
+# ... (tus inicializaciones existentes) ...
 if 'default_type_impact' not in st.session_state:
     st.session_state['default_type_impact'] = tabla_tipo_impacto['Tipo de Impacto'].iloc[0]
 if 'default_probabilidad' not in st.session_state:
@@ -85,6 +42,12 @@ if 'default_impacto_numerico' not in st.session_state:
     st.session_state['default_impacto_numerico'] = 50
 if 'default_control_effectiveness' not in st.session_state:
     st.session_state['default_control_effectiveness'] = 50
+
+# Nuevas inicializaciones para Amenaza Deliberada
+if 'deliberate_threat_present_checkbox' not in st.session_state: # Nuevo checkbox
+    st.session_state['deliberate_threat_present_checkbox'] = False
+if 'deliberate_threat_level_selectbox' not in st.session_state: # Nuevo selectbox
+    st.session_state['deliberate_threat_level_selectbox'] = factores_amenaza_deliberada['Clasificacion'].iloc[0] # 'No' por defecto
 
 # Claves reales de widgets inicializadas
 if 'risk_name_input' not in st.session_state:
@@ -101,8 +64,9 @@ if 'impacto_numerico_slider' not in st.session_state:
     st.session_state['impacto_numerico_slider'] = st.session_state['default_impacto_numerico']
 if 'control_effectiveness_slider' not in st.session_state:
     st.session_state['control_effectiveness_slider'] = st.session_state['default_control_effectiveness']
-if 'deliberate_threat_checkbox' not in st.session_state:
-    st.session_state['deliberate_threat_checkbox'] = False
+# Antiguo: if 'deliberate_threat_checkbox' not in st.session_state:
+#          st.session_state['deliberate_threat_checkbox'] = False
+# Las nuevas claves de arriba ya inicializan esto.
 
 # --- Función para obtener textos ---
 def get_text(key):
@@ -117,7 +81,11 @@ def handle_form_submit():
     exposicion_str = st.session_state['selected_exposicion']
     impacto_numerico = st.session_state['impacto_numerico_slider']
     efectividad_control = st.session_state['control_effectiveness_slider']
-    amenaza_deliberada = st.session_state['deliberate_threat_checkbox']
+
+    # Nuevos inputs de amenaza deliberada
+    es_amenaza_deliberada_checkbox = st.session_state['deliberate_threat_present_checkbox']
+    nivel_amenaza_deliberada_str = st.session_state['deliberate_threat_level_selectbox']
+
 
     if not nombre_riesgo:
         st.error(get_text("error_risk_name_empty"))
@@ -126,10 +94,16 @@ def handle_form_submit():
         probabilidad_val = factor_probabilidad[factor_probabilidad['Clasificacion'] == probabilidad_str]['Factor'].iloc[0]
         exposicion_val = factor_exposicion[factor_exposicion['Clasificacion'] == exposicion_str]['Factor'].iloc[0]
         ponderacion_impacto_val = tabla_tipo_impacto[tabla_tipo_impacto['Tipo de Impacto'] == tipo_impacto]['Ponderación'].iloc[0]
-        amenaza_deliberada_factor = 1.0 if amenaza_deliberada else 0.0
 
+        # Llamada actualizada a calcular_criticidad
         amenaza_inherente, amenaza_residual, amenaza_residual_ajustada, riesgo_residual_val = calcular_criticidad(
-            probabilidad_val, exposicion_val, amenaza_deliberada_factor, efectividad_control, impacto_numerico, ponderacion_impacto_val
+            probabilidad_val,
+            exposicion_val,
+            nivel_amenaza_deliberada_str, # Pasar la clasificación de texto
+            efectividad_control,
+            impacto_numerico,
+            ponderacion_impacto_val,
+            es_amenaza_deliberada_checkbox # Pasar el estado del checkbox
         )
 
         clasificacion, color = clasificar_criticidad(riesgo_residual_val, st.session_state.idioma)
@@ -143,7 +117,8 @@ def handle_form_submit():
             "Exposición": exposicion_val,
             "Impacto Numérico": impacto_numerico,
             "Efectividad del Control (%)": efectividad_control,
-            "Amenaza Deliberada": amenaza_deliberada_factor,
+            "Amenaza Deliberada (Checkbox)": es_amenaza_deliberada_checkbox, # Guardar el estado del checkbox
+            "Nivel Amenaza Deliberada": nivel_amenaza_deliberada_str, # Guardar el nivel seleccionado
             "Amenaza Inherente": amenaza_inherente,
             "Amenaza Residual": amenaza_residual,
             "Amenaza Residual Ajustada": amenaza_residual_ajustada,
@@ -160,18 +135,11 @@ def handle_form_submit():
             st.success(get_text("success_risk_added"))
 
         st.session_state.current_edit_index = -1
-        reset_form_fields()
+        reset_form_fields() # Considera actualizar esta función para resetear los nuevos campos de amenaza deliberada
+        st.experimental_rerun() # Esto asegura que los cambios se reflejen
 
 # --- Sidebar ---
-with st.sidebar:
-    if st.checkbox(get_text("sidebar_language_toggle"), value=(st.session_state.idioma == 'en')):
-        st.session_state.idioma = 'en'
-    else:
-        st.session_state.idioma = 'es'
-
-    st.markdown("---")
-    st.header(get_text("tax_info_title"))
-    st.info(get_text("tax_info_text"))
+# (Tu código del sidebar existente)
 
 # --- Título ---
 st.title(get_text("app_title"))
@@ -179,16 +147,21 @@ st.title(get_text("app_title"))
 # --- Formulario de entrada ---
 st.header(get_text("risk_input_form_title"))
 with st.form("risk_form", clear_on_submit=False):
+    # Lógica de carga para edición
     if st.session_state.current_edit_index != -1:
         risk_to_edit = st.session_state.riesgos.loc[st.session_state.current_edit_index]
         st.session_state['risk_name_input'] = risk_to_edit["Nombre del Riesgo"]
         st.session_state['risk_description_input'] = risk_to_edit["Descripción"]
         st.session_state['selected_type_impact'] = risk_to_edit["Tipo de Impacto"]
+        # Asegúrate de que los valores de probabilidad y exposición se traduzcan correctamente a las clasificaciones
         st.session_state['selected_probabilidad'] = factor_probabilidad[factor_probabilidad['Factor'] == risk_to_edit["Probabilidad"]]['Clasificacion'].iloc[0]
         st.session_state['selected_exposicion'] = factor_exposicion[factor_exposicion['Factor'] == risk_to_edit["Exposición"]]['Clasificacion'].iloc[0]
         st.session_state['impacto_numerico_slider'] = int(risk_to_edit["Impacto Numérico"])
         st.session_state['control_effectiveness_slider'] = int(risk_to_edit["Efectividad del Control (%)"])
-        st.session_state['deliberate_threat_checkbox'] = bool(risk_to_edit["Amenaza Deliberada"])
+        # Carga los nuevos campos de amenaza deliberada
+        st.session_state['deliberate_threat_present_checkbox'] = risk_to_edit["Amenaza Deliberada (Checkbox)"]
+        st.session_state['deliberate_threat_level_selectbox'] = risk_to_edit["Nivel Amenaza Deliberada"]
+
         st.write(f"**{get_text('editing_risk')}**: {risk_to_edit['Nombre del Riesgo']}")
         st.info(get_text('edit_in_form'))
 
@@ -202,71 +175,39 @@ with st.form("risk_form", clear_on_submit=False):
         st.text_area(get_text("risk_description"), height=100, key="risk_description_input")
         st.slider(get_text("risk_impact_numeric"), 0, 100, key="impacto_numerico_slider")
         st.slider(get_text("risk_control_effectiveness"), 0, 100, key="control_effectiveness_slider")
-        st.checkbox(get_text("risk_deliberate_threat"), key="deliberate_threat_checkbox")
+
+        # NUEVOS WIDGETS para Amenaza Deliberada
+        st.checkbox(get_text("risk_deliberate_threat_present"), key="deliberate_threat_present_checkbox")
+        # El selectbox solo se habilita si el checkbox está marcado
+        if st.session_state['deliberate_threat_present_checkbox']:
+            st.selectbox(
+                get_text("risk_deliberate_threat_level"),
+                factores_amenaza_deliberada['Clasificacion'].tolist(),
+                key="deliberate_threat_level_selectbox"
+            )
+        else:
+            # Si el checkbox no está marcado, forzamos el selectbox a 'No' y lo deshabilitamos
+            st.session_state['deliberate_threat_level_selectbox'] = 'No'
+            st.selectbox(
+                get_text("risk_deliberate_threat_level"),
+                factores_amenaza_deliberada['Clasificacion'].tolist(),
+                key="deliberate_threat_level_selectbox",
+                disabled=True
+            )
 
     submitted = st.form_submit_button(get_text("add_risk_button"))
     if submitted:
         handle_form_submit()
-        st.experimental_rerun()
+        # st.experimental_rerun() # Ya lo hace handle_form_submit
 
 # --- Visualización de riesgos ---
-st.markdown("---")
-st.header(get_text("risk_list_title"))
-
-if st.session_state.riesgos.empty:
-    st.info(get_text("no_risks_added_yet"))
-else:
-    st.write(format_risk_dataframe(st.session_state.riesgos, st.session_state.idioma, estilizado=True))
-    col_edit, col_delete = st.columns(2)
-    with col_edit:
-        risk_to_select_edit = st.selectbox(get_text("select_risk_to_edit"), [""] + st.session_state.riesgos["Nombre del Riesgo"].tolist(), key="select_edit_risk")
-        if st.button(get_text("edit_selected_risk_button")):
-            if risk_to_select_edit:
-                st.session_state.current_edit_index = st.session_state.riesgos[st.session_state.riesgos["Nombre del Riesgo"] == risk_to_select_edit].index[0]
-                st.experimental_rerun()
-            else:
-                st.warning(get_text("please_select_risk_to_edit"))
-    with col_delete:
-        risk_to_select_delete = st.selectbox(get_text("select_risk_to_delete"), [""] + st.session_state.riesgos["Nombre del Riesgo"].tolist(), key="select_delete_risk")
-        if st.button(get_text("delete_selected_risk_button")):
-            if risk_to_select_delete:
-                st.session_state.riesgos = st.session_state.riesgos[st.session_state.riesgos["Nombre del Riesgo"] != risk_to_select_delete].reset_index(drop=True)
-                st.success(f"Riesgo '{risk_to_select_delete}' {get_text('successfully_deleted')}.")
-                if st.session_state.current_edit_index != -1 and not st.session_state.riesgos.empty:
-                    if st.session_state.current_edit_index >= len(st.session_state.riesgos):
-                        st.session_state.current_edit_index = -1
-                elif st.session_state.riesgos.empty:
-                    st.session_state.current_edit_index = -1
-                reset_form_fields()
-                st.experimental_rerun()
-            else:
-                st.warning(get_text("please_select_risk_to_delete"))
+# ... (Tu código existente, solo se verá afectado por las nuevas columnas en el DataFrame de riesgos)
 
 # --- Cuadrante de riesgos (heatmap) ---
-st.markdown("---")
-st.header(get_text("risk_quadrant_title"))
-
-if st.session_state.riesgos.empty:
-    st.info(get_text("add_risks_for_heatmap"))
-else:
-    heatmap_fig = create_heatmap(st.session_state.riesgos, matriz_probabilidad, matriz_impacto, st.session_state.idioma)
-    if heatmap_fig:
-        st.plotly_chart(heatmap_fig, use_container_width=True)
-    else:
-        st.warning(get_text("heatmap_error"))
+# ... (Tu código existente)
 
 # --- Análisis de Pareto ---
-st.markdown("---")
-st.header(get_text("pareto_analysis_title"))
-
-if st.session_state.riesgos.empty:
-    st.info(get_text("add_risks_for_pareto"))
-else:
-    pareto_fig = create_pareto_chart(st.session_state.riesgos, st.session_state.idioma)
-    if pareto_fig:
-        st.plotly_chart(pareto_fig, use_container_width=True)
-    else:
-        st.warning(get_text("pareto_error"))
+# ... (Tu código existente)
 
 # --- Simulación de Monte Carlo ---
 st.markdown("---")
@@ -299,8 +240,12 @@ else:
         with col_mc2:
             st.metric(get_text("mc_impact_numeric"), f"{risk_mc['Impacto Numérico']:.0f}%")
             st.metric(get_text("mc_control_effectiveness"), f"{risk_mc['Efectividad del Control (%)']:.0f}%")
-            st.metric(get_text("mc_deliberate_threat"), "Sí" if risk_mc['Amenaza Deliberada'] == 1.0 else "No")
+            # Actualizar display de amenaza deliberada
+            amenaza_deliberada_display = get_text("yes") if risk_mc['Amenaza Deliberada (Checkbox)'] else get_text("no")
+            amenaza_deliberada_level_display = risk_mc['Nivel Amenaza Deliberada']
+            st.metric(get_text("mc_deliberate_threat"), f"{amenaza_deliberada_display} ({amenaza_deliberada_level_display})")
             st.metric(get_text("mc_current_residual_risk"), f"{risk_mc['Riesgo Residual']:.2f} ({risk_mc['Clasificación']})")
+
 
         valor_economico = st.number_input(
             get_text("economic_value_asset"),
@@ -322,7 +267,8 @@ else:
                         exposicion_base=risk_mc['Exposición'],
                         impacto_numerico_base=risk_mc['Impacto Numérico'],
                         efectividad_base_pct=risk_mc['Efectividad del Control (%)'],
-                        amenaza_deliberada_factor_base=risk_mc['Amenaza Deliberada'],
+                        nivel_amenaza_deliberada_str_base=risk_mc['Nivel Amenaza Deliberada'], # Pasar el nivel de texto
+                        es_amenaza_deliberada_checkbox_base=risk_mc['Amenaza Deliberada (Checkbox)'], # Pasar el estado del checkbox
                         ponderacion_impacto=tabla_tipo_impacto[tabla_tipo_impacto['Tipo de Impacto'] == risk_mc['Tipo de Impacto']]['Ponderación'].iloc[0],
                         valor_economico=valor_economico,
                         iteraciones=num_iteraciones
@@ -336,26 +282,29 @@ else:
                         st.subheader(get_text("simulated_risk_distribution"))
                         fig_riesgo = plot_montecarlo_histogram(
                             riesgos_simulados,
-                            get_text("montecarlo_hist_title"),
-                            get_text("montecarlo_hist_xlabel"),
-                            get_text("montecarlo_hist_ylabel")
+                            get_text("histogram_risk_title"),
+                            get_text("risk_value_label"),
+                            st.session_state.idioma
                         )
-                        st.pyplot(fig_riesgo)
+                        st.plotly_chart(fig_riesgo, use_container_width=True) # Corregido
 
                     with col_results2:
-                        st.subheader(get_text("simulated_losses_distribution"))
+                        st.subheader(get_text("simulated_economic_losses"))
                         fig_perdidas = plot_montecarlo_histogram(
                             perdidas_simuladas,
-                            get_text("montecarlo_losses_hist_title"),
-                            get_text("montecarlo_hist_xlabel"),
-                            get_text("montecarlo_hist_ylabel")
+                            get_text("histogram_losses_title"),
+                            get_text("losses_value_label"),
+                            st.session_state.idioma
                         )
-                        st.pyplot(fig_perdidas)
+                        st.plotly_chart(fig_perdidas, use_container_width=True) # Corregido
 
                     st.subheader(get_text("sensitivity_analysis_title"))
                     fig_sensitivity = create_sensitivity_plot(correlaciones, st.session_state.idioma)
-                    st.pyplot(fig_sensitivity)
+                    st.plotly_chart(fig_sensitivity, use_container_width=True) # También corregido aquí, si no lo estaba
                 else:
                     st.error(get_text("simulation_failed"))
+    else:
+        st.info(get_text("select_risk_to_start_mc"))
 
-# --- FIN DEL MÓDULO ---
+# --- Matriz de Probabilidad e Impacto ---
+# ... (Tu código existente)
