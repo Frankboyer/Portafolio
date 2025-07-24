@@ -1,28 +1,67 @@
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 import pandas as pd
-def get_text(key: str, idioma: str = 'es') -> str:
-    """Obtiene texto traducido según clave e idioma"""
-    from data_config import textos
-    return textos.get(idioma, {}).get(key, f"[{key} no encontrado]")
+import polars as pl
+import streamlit as st
+import numpy as np
+from loguru import logger  # Opcional para logging
 
-def get_first_value(df: pd.DataFrame, column: str) -> Any:
-    """Obtiene el primer valor de una columna de DataFrame"""
-    return df[column].iloc[0] if not df.empty and column in df.columns else None
+@st.cache_data
+def get_text(key: str) -> str:
+    """Obtiene texto traducido o marcado"""
+    # Implementación de ejemplo
+    translations = {"welcome": "Bienvenido", "error": "Error"}
+    return translations.get(key, key)
 
-def get_factor_value(df: pd.DataFrame, lookup_value: str, factor_column: str = 'Factor') -> float:
-    """Obtiene valor numérico de factor a partir de su clasificación"""
-    filtered = df[df['Clasificacion'] == lookup_value]
-    if filtered.empty:
-        raise ValueError(f"Clasificación '{lookup_value}' no encontrada")
-    return float(filtered[factor_column].iloc[0])
+@st.cache_data
+def get_first_value(series: Union[pd.Series, pl.Series]) -> Any:
+    """Obtiene el primer valor de una serie (compatible con Pandas/Polars)"""
+    if isinstance(series, pd.Series):
+        return series.iloc[0]
+    return series[0]
 
-def validate_impact_value(value: float) -> bool:
-    """Valida que el valor de impacto esté en rango correcto"""
-    return 0 <= value <= 100
+@st.cache_data
+def get_factor_value(factor: str) -> float:
+    """Obtiene factor numérico de un mapeo"""
+    factors = {"high": 1.0, "medium": 0.5, "low": 0.1}
+    return factors.get(factor.lower(), 0.0)
 
-def load_risk_for_edit(risk_id: int, df: pd.DataFrame) -> Optional[Dict[str, Any]]:
-    """Carga datos de un riesgo existente para edición"""
-    risk_data = df[df['ID'] == risk_id]
-    if not risk_data.empty:
-        return risk_data.iloc[0].to_dict()
-    return None
+def validate_impact_value(value: Union[int, float]) -> bool:
+    """Valida que el impacto esté en rango permitido"""
+    return 0 <= value <= 1.0
+
+@st.cache_data
+def load_risk_for_edit(risk_id: int, 
+                      df: Union[pd.DataFrame, pl.DataFrame]) -> Optional[Dict[str, Any]]:
+    """
+    Carga un riesgo específico para edición
+    Compatible con DataFrames de Pandas y Polars
+    """
+    try:
+        if isinstance(df, pd.DataFrame):
+            record = df[df["risk_id"] == risk_id].iloc[0].to_dict()
+        else:
+            record = df.filter(pl.col("risk_id") == risk_id).to_dicts()[0]
+            
+        return {
+            "id": record.get("risk_id"),
+            "name": record.get("risk_name"),
+            "impact": float(record.get("impact", 0)),
+            "probability": float(record.get("probability", 0))
+        }
+    except (IndexError, KeyError) as e:
+        logger.error(f"Error loading risk {risk_id}: {str(e)}")
+        return None
+
+# Ejemplo de uso seguro
+if __name__ == "__main__":
+    # Datos de prueba
+    test_data = pd.DataFrame({
+        "risk_id": [1, 2],
+        "risk_name": ["Riesgo A", "Riesgo B"],
+        "impact": [0.8, 0.3],
+        "probability": [0.6, 0.4]
+    })
+    
+    # Test funciones
+    print(load_risk_for_edit(1, test_data))
+    print(get_factor_value("high"))
