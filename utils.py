@@ -24,26 +24,29 @@ def reset_form_fields():
     st.session_state['deliberate_threat_checkbox'] = False
     st.session_state.current_edit_index = -1 # Asegúrate de que no estamos en modo edición
 
-def format_risk_dataframe(df_riesgos, idioma='es'):
+def format_risk_dataframe(df_riesgos, idioma='es', estilizado=True):
     """
     Formatea el DataFrame de riesgos para una mejor visualización en Streamlit,
-    incluyendo la traducción de columnas y la aplicación de estilos.
+    incluyendo la traducción de columnas, formato numérico y estilos condicionales si se desea.
+
+    Parámetros:
+    - df_riesgos: DataFrame original con los datos de riesgo
+    - idioma: 'es' o 'en' para mostrar los encabezados traducidos
+    - estilizado: bool. Si True, aplica formato condicional de color; si False, devuelve solo DataFrame limpio
     """
     if df_riesgos.empty:
-        return pd.DataFrame() # Retorna un DataFrame vacío si no hay datos
+        return pd.DataFrame()  # Retorna un DataFrame vacío si no hay datos
 
     df_display = df_riesgos.copy()
 
     # Mapear valores numéricos a nombres de clasificación si es necesario para Probabilidad y Exposición
-    # Asegúrate de que estos mapeos existen en data_config
     prob_map = factor_probabilidad.set_index('Factor')['Clasificacion'].to_dict()
     exp_map = factor_exposicion.set_index('Factor')['Clasificacion'].to_dict()
 
     df_display['Probabilidad'] = df_display['Probabilidad'].map(prob_map).fillna(df_display['Probabilidad']).astype(str)
     df_display['Exposición'] = df_display['Exposición'].map(exp_map).fillna(df_display['Exposición']).astype(str)
 
-
-    # Definir nombres de columnas para mostrar según el idioma
+    # Definir nombres de columnas según idioma
     column_names_es = {
         "ID": "ID",
         "Nombre del Riesgo": "Nombre del Riesgo",
@@ -59,7 +62,7 @@ def format_risk_dataframe(df_riesgos, idioma='es'):
         "Amenaza Residual Ajustada": "Amenaza Residual Ajustada",
         "Riesgo Residual": "Riesgo Residual",
         "Clasificación": "Clasificación",
-        "Color": "Color" # Mantener para el estilo, luego se oculta
+        "Color": "Color"
     }
 
     column_names_en = {
@@ -80,51 +83,55 @@ def format_risk_dataframe(df_riesgos, idioma='es'):
         "Color": "Color"
     }
 
-    if idioma == 'es':
-        df_display = df_display.rename(columns=column_names_es)
-        # Formatear 'Amenaza Deliberada' a Sí/No
-        df_display['Amenaza Deliberada'] = df_display['Amenaza Deliberada'].apply(lambda x: "Sí" if x == 1.0 else "No")
-    else:
-        df_display = df_display.rename(columns=column_names_en)
-        # Formatear 'Deliberate Threat' a Yes/No
-        df_display['Deliberate Threat'] = df_display['Deliberate Threat'].apply(lambda x: "Yes" if x == 1.0 else "No")
+    # Selección de nombres según idioma
+    nombre_columnas = column_names_es if idioma == 'es' else column_names_en
+    df_display = df_display.rename(columns=nombre_columnas)
 
+    # Formatear la columna "Amenaza Deliberada" como texto Sí/No o Yes/No
+    ad_col = nombre_columnas["Amenaza Deliberada"]
+    df_display[ad_col] = df_display[ad_col].apply(lambda x: "Sí" if x == 1.0 else ("No" if idioma == 'es' else "No" if x == 0.0 else x)) if idioma == 'es' else df_display[ad_col].apply(lambda x: "Yes" if x == 1.0 else "No")
 
-    # Columnas numéricas para formato
-    numeric_cols = [col_name for col_name in [
-        column_names_es["Impacto Numérico"] if idioma == 'es' else column_names_en["Impacto Numérico"],
-        column_names_es["Efectividad del Control (%)"] if idioma == 'es' else column_names_en["Efectividad del Control (%)"],
-        column_names_es["Amenaza Inherente"] if idioma == 'es' else column_names_en["Amenaza Inherente"],
-        column_names_es["Amenaza Residual"] if idioma == 'es' else column_names_en["Amenaza Residual"],
-        column_names_es["Amenaza Residual Ajustada"] if idioma == 'es' else column_names_en["Amenaza Residual Ajustada"],
-        column_names_es["Riesgo Residual"] if idioma == 'es' else column_names_en["Riesgo Residual"]
-    ] if col_name in df_display.columns] # Asegurarse de que la columna exista
+    # Columnas numéricas para redondear
+    numeric_cols = [nombre_columnas[c] for c in [
+        "Impacto Numérico", "Efectividad del Control (%)",
+        "Amenaza Inherente", "Amenaza Residual",
+        "Amenaza Residual Ajustada", "Riesgo Residual"
+    ] if nombre_columnas[c] in df_display.columns]
 
-    # Aplicar formato de dos decimales a las columnas numéricas relevantes
     for col in numeric_cols:
-        df_display[col] = df_display[col].apply(lambda x: f"{x:.2f}")
+        df_display[col] = df_display[col].apply(lambda x: f"{x:.2f}" if isinstance(x, (int, float, float)) else x)
 
-    # Estilo condicional para la columna 'Riesgo Residual' basada en 'Color'
+    # Columnas visibles (sin 'ID' ni 'Color')
+    cols_to_show = [
+        nombre_columnas["Nombre del Riesgo"],
+        nombre_columnas["Descripción"],
+        nombre_columnas["Tipo de Impacto"],
+        nombre_columnas["Probabilidad"],
+        nombre_columnas["Exposición"],
+        nombre_columnas["Impacto Numérico"],
+        nombre_columnas["Efectividad del Control (%)"],
+        nombre_columnas["Amenaza Deliberada"],
+        nombre_columnas["Amenaza Inherente"],
+        nombre_columnas["Amenaza Residual"],
+        nombre_columnas["Amenaza Residual Ajustada"],
+        nombre_columnas["Riesgo Residual"],
+        nombre_columnas["Clasificación"]
+    ]
+
+    # Si se solicita sin estilo, solo devolver el DataFrame limpio
+    if not estilizado:
+        df_display = df_display.drop(columns=['Color'], errors='ignore')
+        df_display = df_display[[col for col in cols_to_show if col in df_display.columns]]
+        return df_display
+
+    # Estilo condicional por color de fondo
     def color_rows(row):
-        color = row['Color']
+        color = row.get('Color', '#FFFFFF')
         return [f'background-color: {color}' for _ in row]
 
-    # Columnas a mostrar (excluir 'ID' y 'Color' para el usuario final)
-    cols_to_show_es = [
-        "Nombre del Riesgo", "Descripción", "Tipo de Impacto", "Probabilidad",
-        "Exposición", "Impacto Numérico", "Efectividad del Control (%)",
-        "Amenaza Deliberada", "Amenaza Inherente", "Amenaza Residual",
-        "Amenaza Residual Ajustada", "Riesgo Residual", "Clasificación"
-    ]
-    cols_to_show_en = [
-        "Risk Name", "Description", "Impact Type", "Probability",
-        "Exposure", "Numeric Impact", "Control Effectiveness (%)",
-        "Deliberate Threat", "Inherent Threat", "Residual Threat",
-        "Adjusted Residual Threat", "Residual Risk", "Classification"
-    ]
-    display_cols = cols_to_show_es if idioma == 'es' else cols_to_show_en
-
-    # Aplicar el estilo y luego seleccionar las columnas a mostrar
+    # Aplicar estilo y ocultar columna "Color"
     styled_df = df_display.style.apply(color_rows, axis=1)
+    if 'Color' in df_display.columns:
+        styled_df = styled_df.hide_columns(['Color'])
 
-    return styled_df.hide(axis="columns", subset=['Color']).reindex(columns=display_cols, fill_value='')
+    return styled_df
