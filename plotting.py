@@ -1,7 +1,7 @@
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-from data_config import textos # Asegúrate de importar 'textos' para la función get_text_plotting
+from data_config import textos
 
 # Función auxiliar para obtener textos específicos de este módulo
 def get_text_plotting(key, idioma='es'):
