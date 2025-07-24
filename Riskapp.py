@@ -86,6 +86,7 @@ if 'default_impacto_numerico' not in st.session_state:
 if 'default_control_effectiveness' not in st.session_state:
     st.session_state['default_control_effectiveness'] = 50
 
+# Claves reales de widgets inicializadas
 if 'risk_name_input' not in st.session_state:
     st.session_state['risk_name_input'] = ""
 if 'risk_description_input' not in st.session_state:
@@ -103,10 +104,11 @@ if 'control_effectiveness_slider' not in st.session_state:
 if 'deliberate_threat_checkbox' not in st.session_state:
     st.session_state['deliberate_threat_checkbox'] = False
 
-
+# --- Función para obtener textos ---
 def get_text(key):
     return textos[st.session_state.idioma].get(key, key)
 
+# --- Callback para enviar formulario ---
 def handle_form_submit():
     nombre_riesgo = st.session_state['risk_name_input']
     descripcion_riesgo = st.session_state['risk_description_input']
@@ -161,6 +163,7 @@ def handle_form_submit():
         reset_form_fields()
         st.experimental_rerun()
 
+# --- Sidebar ---
 with st.sidebar:
     if st.checkbox(get_text("sidebar_language_toggle"), value=(st.session_state.idioma == 'en')):
         st.session_state.idioma = 'en'
@@ -171,10 +174,11 @@ with st.sidebar:
     st.header(get_text("tax_info_title"))
     st.info(get_text("tax_info_text"))
 
+# --- Título ---
 st.title(get_text("app_title"))
 
+# --- Formulario de entrada ---
 st.header(get_text("risk_input_form_title"))
-
 with st.form("risk_form", clear_on_submit=False):
     if st.session_state.current_edit_index != -1:
         risk_to_edit = st.session_state.riesgos.loc[st.session_state.current_edit_index]
@@ -203,6 +207,7 @@ with st.form("risk_form", clear_on_submit=False):
 
     st.form_submit_button(get_text("add_risk_button"), on_click=handle_form_submit)
 
+# --- Visualización de riesgos ---
 st.markdown("---")
 st.header(get_text("risk_list_title"))
 
@@ -219,7 +224,6 @@ else:
                 st.experimental_rerun()
             else:
                 st.warning(get_text("please_select_risk_to_edit"))
-
     with col_delete:
         risk_to_select_delete = st.selectbox(get_text("select_risk_to_delete"), [""] + st.session_state.riesgos["Nombre del Riesgo"].tolist(), key="select_delete_risk")
         if st.button(get_text("delete_selected_risk_button")):
@@ -236,6 +240,7 @@ else:
             else:
                 st.warning(get_text("please_select_risk_to_delete"))
 
+# --- Cuadrante de riesgos (heatmap) ---
 st.markdown("---")
 st.header(get_text("risk_quadrant_title"))
 
@@ -248,6 +253,7 @@ else:
     else:
         st.warning(get_text("heatmap_error"))
 
+# --- Análisis de Pareto ---
 st.markdown("---")
 st.header(get_text("pareto_analysis_title"))
 
@@ -260,6 +266,7 @@ else:
     else:
         st.warning(get_text("pareto_error"))
 
+# --- Simulación de Monte Carlo ---
 st.markdown("---")
 st.header(get_text("monte_carlo_simulation_title"))
 st.info(get_text("monte_carlo_info"))
@@ -330,15 +337,3 @@ else:
                             get_text("histogram_risk_title"),
                             get_text("risk_value_label"),
                             st.session_state.idioma
-                        )
-                        st.plotly_chart(fig_riesgo)
-
-                    with col_results2:
-                        st.subheader(get_text("simulated_economic_losses"))
-                        fig_perdida = plot_montecarlo_histogram(
-                            perdidas_simuladas,
-                            get_text("histogram_losses_title"),
-                            get_text("losses_value_label"),
-                            st.session_state.idioma
-                        )
-                        st.plotly_chart(fig_perdida
