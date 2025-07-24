@@ -216,53 +216,53 @@ with st.sidebar:
 
     # --- Matriz de Probabilidad ---
     st.subheader(get_text("matrix_prob_col"))
-    if not matriz_probabilidad.empty:
+    if matriz_probabilidad is not None and not matriz_probabilidad.empty:
         df_prob_display = matriz_probabilidad[['Clasificacion', 'Factor', 'Justificacion']].rename(
             columns={'Clasificacion': get_text("matrix_prob_col"), 'Factor': get_text("matrix_factor_col"), 'Justificacion': get_text("matrix_justification_col")}
         )
         st.dataframe(df_prob_display, hide_row_index=True)
     else:
-        st.info("La matriz de probabilidad no está disponible.")
+        st.error("Error: La matriz de probabilidad no se pudo cargar o está vacía. Por favor, verifica el archivo 'data_config.py'.")
 
     # --- Ponderaciones de Tipo de Impacto ---
     st.subheader(get_text("matrix_impact_type_title"))
-    if not tabla_tipo_impacto.empty:
+    if tabla_tipo_impacto is not None and not tabla_tipo_impacto.empty:
         df_impact_type_display = tabla_tipo_impacto[['Tipo de Impacto', 'Ponderación', 'Justificación Técnica']].rename(
             columns={'Tipo de Impacto': get_text("risk_type_impact"), 'Ponderación': get_text("matrix_factor_col"), 'Justificación Técnica': get_text("matrix_justification_col")}
         )
         st.dataframe(df_impact_type_display, hide_row_index=True)
     else:
-        st.info("La tabla de tipos de impacto no está disponible.")
+        st.error("Error: La tabla de tipos de impacto no se pudo cargar o está vacía. Por favor, verifica el archivo 'data_config.py'.")
 
     # --- Factores de Exposición ---
     st.subheader(get_text("matrix_exposure_title"))
-    if not factor_exposicion.empty:
+    if factor_exposicion is not None and not factor_exposicion.empty:
         df_exposure_display = factor_exposicion[['Clasificacion', 'Factor']].rename(
             columns={'Clasificacion': get_text("matrix_exposure_title"), 'Factor': get_text("matrix_factor_col")}
         )
         st.dataframe(df_exposure_display, hide_row_index=True)
     else:
-        st.info("La tabla de factores de exposición no está disponible.")
+        st.error("Error: La tabla de factores de exposición no se pudo cargar o está vacía. Por favor, verifica el archivo 'data_config.py'.")
 
     # --- Factores de Amenaza Deliberada ---
     st.subheader(get_text("matrix_threat_title"))
-    if not factores_amenaza_deliberada.empty:
+    if factores_amenaza_deliberada is not None and not factores_amenaza_deliberada.empty:
         df_threat_display = factores_amenaza_deliberada[['Clasificacion', 'Factor']].rename(
             columns={'Clasificacion': get_text("matrix_threat_title"), 'Factor': get_text("matrix_factor_col")}
         )
         st.dataframe(df_threat_display, hide_row_index=True)
     else:
-        st.info("La tabla de factores de amenaza deliberada no está disponible.")
+        st.error("Error: La tabla de factores de amenaza deliberada no se pudo cargar o está vacía. Por favor, verifica el archivo 'data_config.py'.")
 
     # --- Factores de Efectividad de Control ---
     st.subheader(get_text("matrix_control_title"))
-    if not efectividad_controles.empty:
+    if efectividad_controles is not None and not efectividad_controles.empty:
         df_control_display = efectividad_controles[['Clasificacion', 'Factor']].rename(
             columns={'Clasificacion': get_text("matrix_control_title"), 'Factor': get_text("matrix_factor_col")}
         )
         st.dataframe(df_control_display, hide_row_index=True)
     else:
-        st.info("La tabla de efectividad de controles no está disponible.")
+        st.error("Error: La tabla de efectividad de controles no se pudo cargar o está vacía. Por favor, verifica el archivo 'data_config.py'.")
 
 
 # --- Título ---
@@ -398,7 +398,6 @@ else:
                         st.success(f"Riesgo '{row['Nombre del Riesgo']}' eliminado.")
                         st.experimental_rerun()
                 with col_confirm_no:
-                    # Esta es la línea 401 que te dio el error, ahora corregida:
                     if st.button("No", key=f"confirm_no_{unique_id}"):
                         st.session_state[f'confirm_delete_{unique_id}'] = False
                         st.experimental_rerun()
