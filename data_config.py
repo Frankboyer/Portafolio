@@ -242,7 +242,7 @@ textos = {
 
         "sensitivity_analysis_title": "Sensitivity Analysis (Correlation)",
         "correlation_title": "Pearson Correlation with Residual Risk",
-        "correlation_x_axis": "Correlation",
+        "correlation_x_axis": "Correlacion",
         "correlation_y_axis": "Input Variable",
 
         "matrix_title": "Probability and Impact Matrix",
@@ -270,7 +270,7 @@ textos = {
         "impact_type_humanos": "Human",
         "impact_type_ambiental": "Environmental",
         "impact_type_financiero": "Financial",
-        "impact_type_reputacional": "Reputational",
+        "impact_type_reputacional": "Reputation",
         "impact_type_operacional": "Operational",
         "impact_type_economicos": "Economic",
         "impact_type_comercial": "Commercial",
