@@ -253,7 +253,6 @@ if st.session_state.riesgos.empty:
 else:
     # Asegúrate de que las columnas están en el orden esperado para el formato
    st.write(format_risk_dataframe(st.session_state.riesgos, st.session_state.idioma, estilizado=True))
-
     col_edit, col_delete = st.columns(2)
     with col_edit:
         risk_to_select_edit = st.selectbox(get_text("select_risk_to_edit"), [""] + st.session_state.riesgos["Nombre del Riesgo"].tolist(), key="select_edit_risk")
