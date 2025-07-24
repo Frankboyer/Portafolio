@@ -86,21 +86,23 @@ if 'current_edit_index' not in st.session_state:
 # Estos valores predeterminados aseguran que los widgets tengan un valor inicial
 # y se adapten a los datos configurados.
 
+# Función para obtener el primer valor seguro de un DataFrame
+def get_first_value(df, column):
+    return df[column].iloc[0] if not df.empty else ""
+
 if 'default_type_impact' not in st.session_state:
-    st.session_state['default_type_impact'] = tabla_tipo_impacto['Tipo de Impacto'].iloc[0] if not tabla_tipo_impacto.empty else ""
+    st.session_state['default_type_impact'] = get_first_value(tabla_tipo_impacto, 'Tipo de Impacto')
 if 'default_probabilidad' not in st.session_state:
-    st.session_state['default_probabilidad'] = factor_probabilidad['Clasificacion'].iloc[0] if not factor_probabilidad.empty else ""
+    st.session_state['default_probabilidad'] = get_first_value(factor_probabilidad, 'Clasificacion')
 if 'default_exposicion' not in st.session_state:
-    st.session_state['default_exposicion'] = factor_exposicion['Clasificacion'].iloc[0] if not factor_exposicion.empty else ""
+    st.session_state['default_exposicion'] = get_first_value(factor_exposicion, 'Clasificacion')
+if 'default_amenaza_deliberada' not in st.session_state:
+    st.session_state['default_amenaza_deliberada'] = get_first_value(factores_amenaza_deliberada, 'Clasificacion')
+
 if 'default_impacto_numerico' not in st.session_state:
     st.session_state['default_impacto_numerico'] = 50
 if 'default_control_effectiveness' not in st.session_state:
     st.session_state['default_control_effectiveness'] = 50
-
-if 'deliberate_threat_present_checkbox' not in st.session_state:
-    st.session_state['deliberate_threat_present_checkbox'] = False
-if 'deliberate_threat_level_selectbox' not in st.session_state:
-    st.session_state['deliberate_threat_level_selectbox'] = factores_amenaza_deliberada['Clasificacion'].iloc[0] if not factores_amenaza_deliberada.empty else ""
 
 # Claves reales de widgets para asegurar persistencia
 # Solo inicializar si no están ya en session_state (e.g. después de un rerun causado por un botón)
@@ -118,6 +120,10 @@ if 'impacto_numerico_slider' not in st.session_state:
     st.session_state['impacto_numerico_slider'] = st.session_state['default_impacto_numerico']
 if 'control_effectiveness_slider' not in st.session_state:
     st.session_state['control_effectiveness_slider'] = st.session_state['default_control_effectiveness']
+if 'deliberate_threat_present_checkbox' not in st.session_state:
+    st.session_state['deliberate_threat_present_checkbox'] = False
+if 'deliberate_threat_level_selectbox' not in st.session_state:
+    st.session_state['deliberate_threat_level_selectbox'] = st.session_state['default_amenaza_deliberada']
 
 
 # --- Función para obtener textos ---
@@ -142,9 +148,10 @@ def handle_form_submit():
         st.error(get_text("error_risk_name_empty"))
         return
     else:
-        probabilidad_val = factor_probabilidad[factor_probabilidad['Clasificacion'] == probabilidad_str]['Factor'].iloc[0]
-        exposicion_val = factor_exposicion[factor_exposicion['Clasificacion'] == exposicion_str]['Factor'].iloc[0]
-        ponderacion_impacto_val = tabla_tipo_impacto[tabla_tipo_impacto['Tipo de Impacto'] == tipo_impacto]['Ponderación'].iloc[0]
+        # Asegurarse de que los DataFrames no estén vacíos antes de acceder a .iloc[0]
+        probabilidad_val = factor_probabilidad[factor_probabilidad['Clasificacion'] == probabilidad_str]['Factor'].iloc[0] if not factor_probabilidad.empty else 0.0
+        exposicion_val = factor_exposicion[factor_exposicion['Clasificacion'] == exposicion_str]['Factor'].iloc[0] if not factor_exposicion.empty else 0.0
+        ponderacion_impacto_val = tabla_tipo_impacto[tabla_tipo_impacto['Tipo de Impacto'] == tipo_impacto]['Ponderación'].iloc[0] if not tabla_tipo_impacto.empty else 0.0
 
         amenaza_inherente, amenaza_residual, amenaza_residual_ajustada, riesgo_residual_val = calcular_criticidad(
             probabilidad_val,
@@ -207,40 +214,55 @@ with st.sidebar:
     st.markdown("---")
     st.header(get_text("matrix_title"))
 
-    # --- Matriz de Probabilidad (CORREGIDO) ---
+    # --- Matriz de Probabilidad ---
     st.subheader(get_text("matrix_prob_col"))
-    df_prob_display = matriz_probabilidad[['Clasificacion', 'Factor', 'Justificacion']].rename(
-        columns={'Clasificacion': get_text("matrix_prob_col"), 'Factor': get_text("matrix_factor_col"), 'Justificacion': get_text("matrix_justification_col")}
-    )
-    st.dataframe(df_prob_display, hide_row_index=True)
+    if not matriz_probabilidad.empty:
+        df_prob_display = matriz_probabilidad[['Clasificacion', 'Factor', 'Justificacion']].rename(
+            columns={'Clasificacion': get_text("matrix_prob_col"), 'Factor': get_text("matrix_factor_col"), 'Justificacion': get_text("matrix_justification_col")}
+        )
+        st.dataframe(df_prob_display, hide_row_index=True)
+    else:
+        st.info("La matriz de probabilidad no está disponible.")
 
-    # --- Ponderaciones de Tipo de Impacto (CORREGIDO) ---
+    # --- Ponderaciones de Tipo de Impacto ---
     st.subheader(get_text("matrix_impact_type_title"))
-    df_impact_type_display = tabla_tipo_impacto[['Tipo de Impacto', 'Ponderación', 'Justificación Técnica']].rename(
-        columns={'Tipo de Impacto': get_text("risk_type_impact"), 'Ponderación': get_text("matrix_factor_col"), 'Justificación Técnica': get_text("matrix_justification_col")}
-    )
-    st.dataframe(df_impact_type_display, hide_row_index=True)
+    if not tabla_tipo_impacto.empty:
+        df_impact_type_display = tabla_tipo_impacto[['Tipo de Impacto', 'Ponderación', 'Justificación Técnica']].rename(
+            columns={'Tipo de Impacto': get_text("risk_type_impact"), 'Ponderación': get_text("matrix_factor_col"), 'Justificación Técnica': get_text("matrix_justification_col")}
+        )
+        st.dataframe(df_impact_type_display, hide_row_index=True)
+    else:
+        st.info("La tabla de tipos de impacto no está disponible.")
 
-    # --- Factores de Exposición (CORREGIDO) ---
+    # --- Factores de Exposición ---
     st.subheader(get_text("matrix_exposure_title"))
-    df_exposure_display = factor_exposicion[['Clasificacion', 'Factor']].rename(
-        columns={'Clasificacion': get_text("matrix_exposure_title"), 'Factor': get_text("matrix_factor_col")}
-    )
-    st.dataframe(df_exposure_display, hide_row_index=True)
+    if not factor_exposicion.empty:
+        df_exposure_display = factor_exposicion[['Clasificacion', 'Factor']].rename(
+            columns={'Clasificacion': get_text("matrix_exposure_title"), 'Factor': get_text("matrix_factor_col")}
+        )
+        st.dataframe(df_exposure_display, hide_row_index=True)
+    else:
+        st.info("La tabla de factores de exposición no está disponible.")
 
-    # --- Factores de Amenaza Deliberada (CORREGIDO) ---
+    # --- Factores de Amenaza Deliberada ---
     st.subheader(get_text("matrix_threat_title"))
-    df_threat_display = factores_amenaza_deliberada[['Clasificacion', 'Factor']].rename(
-        columns={'Clasificacion': get_text("matrix_threat_title"), 'Factor': get_text("matrix_factor_col")}
-    )
-    st.dataframe(df_threat_display, hide_row_index=True)
+    if not factores_amenaza_deliberada.empty:
+        df_threat_display = factores_amenaza_deliberada[['Clasificacion', 'Factor']].rename(
+            columns={'Clasificacion': get_text("matrix_threat_title"), 'Factor': get_text("matrix_factor_col")}
+        )
+        st.dataframe(df_threat_display, hide_row_index=True)
+    else:
+        st.info("La tabla de factores de amenaza deliberada no está disponible.")
 
-    # --- Factores de Efectividad de Control (CORREGIDO) ---
+    # --- Factores de Efectividad de Control ---
     st.subheader(get_text("matrix_control_title"))
-    df_control_display = efectividad_controles[['Clasificacion', 'Factor']].rename(
-        columns={'Clasificacion': get_text("matrix_control_title"), 'Factor': get_text("matrix_factor_col")}
-    )
-    st.dataframe(df_control_display, hide_row_index=True)
+    if not efectividad_controles.empty:
+        df_control_display = efectividad_controles[['Clasificacion', 'Factor']].rename(
+            columns={'Clasificacion': get_text("matrix_control_title"), 'Factor': get_text("matrix_factor_col")}
+        )
+        st.dataframe(df_control_display, hide_row_index=True)
+    else:
+        st.info("La tabla de efectividad de controles no está disponible.")
 
 
 # --- Título ---
@@ -257,14 +279,23 @@ with st.form("risk_form", clear_on_submit=False):
             risk_to_edit = risk_to_edit_df.iloc[0]
             st.session_state['risk_name_input'] = risk_to_edit["Nombre del Riesgo"]
             st.session_state['risk_description_input'] = risk_to_edit["Descripción"]
-            st.session_state['selected_type_impact'] = risk_to_edit["Tipo de Impacto"]
-            # Asegúrate de que los valores de probabilidad y exposición se traduzcan correctamente a las clasificaciones
-            st.session_state['selected_probabilidad'] = factor_probabilidad[factor_probabilidad['Factor'] == risk_to_edit["Probabilidad"]]['Clasificacion'].iloc[0]
-            st.session_state['selected_exposicion'] = factor_exposicion[factor_exposicion['Factor'] == risk_to_edit["Exposición"]]['Clasificacion'].iloc[0]
+            
+            # Asegúrate de que los valores para selectbox existan en las opciones
+            st.session_state['selected_type_impact'] = risk_to_edit["Tipo de Impacto"] if risk_to_edit["Tipo de Impacto"] in tabla_tipo_impacto['Tipo de Impacto'].tolist() else st.session_state['default_type_impact']
+            
+            # Para Probabilidad y Exposición, traducir de factor a clasificación para el selectbox
+            prob_class_edit = factor_probabilidad[factor_probabilidad['Factor'] == risk_to_edit["Probabilidad"]]['Clasificacion'].iloc[0] if not factor_probabilidad[factor_probabilidad['Factor'] == risk_to_edit["Probabilidad"]].empty else st.session_state['default_probabilidad']
+            st.session_state['selected_probabilidad'] = prob_class_edit
+
+            exp_class_edit = factor_exposicion[factor_exposicion['Factor'] == risk_to_edit["Exposición"]]['Clasificacion'].iloc[0] if not factor_exposicion[factor_exposicion['Factor'] == risk_to_edit["Exposición"]].empty else st.session_state['default_exposicion']
+            st.session_state['selected_exposicion'] = exp_class_edit
+
             st.session_state['impacto_numerico_slider'] = int(risk_to_edit["Impacto Numérico"])
             st.session_state['control_effectiveness_slider'] = int(risk_to_edit["Efectividad del Control (%)"])
             st.session_state['deliberate_threat_present_checkbox'] = risk_to_edit["Amenaza Deliberada (Checkbox)"]
-            st.session_state['deliberate_threat_level_selectbox'] = risk_to_edit["Nivel Amenaza Deliberada"]
+            
+            delib_threat_level_edit = risk_to_edit["Nivel Amenaza Deliberada"] if risk_to_edit["Nivel Amenaza Deliberada"] in factores_amenaza_deliberada['Clasificacion'].tolist() else st.session_state['default_amenaza_deliberada']
+            st.session_state['deliberate_threat_level_selectbox'] = delib_threat_level_edit
 
             st.write(f"**{get_text('editing_risk')}**: {risk_to_edit['Nombre del Riesgo']}")
             st.info(get_text('edit_in_form'))
@@ -274,9 +305,24 @@ with st.form("risk_form", clear_on_submit=False):
     col1, col2 = st.columns(2)
     with col1:
         st.text_input(get_text("risk_name"), key="risk_name_input")
-        st.selectbox(get_text("risk_type_impact"), tabla_tipo_impacto['Tipo de Impacto'].tolist(), key="selected_type_impact")
-        st.selectbox(get_text("risk_probability"), factor_probabilidad['Clasificacion'].tolist(), key="selected_probabilidad")
-        st.selectbox(get_text("risk_exposure"), factor_exposicion['Clasificacion'].tolist(), key="selected_exposicion")
+        st.selectbox(
+            get_text("risk_type_impact"),
+            tabla_tipo_impacto['Tipo de Impacto'].tolist(),
+            key="selected_type_impact",
+            index=tabla_tipo_impacto['Tipo de Impacto'].tolist().index(st.session_state['selected_type_impact']) if st.session_state['selected_type_impact'] in tabla_tipo_impacto['Tipo de Impacto'].tolist() else 0
+        )
+        st.selectbox(
+            get_text("risk_probability"),
+            factor_probabilidad['Clasificacion'].tolist(),
+            key="selected_probabilidad",
+            index=factor_probabilidad['Clasificacion'].tolist().index(st.session_state['selected_probabilidad']) if st.session_state['selected_probabilidad'] in factor_probabilidad['Clasificacion'].tolist() else 0
+        )
+        st.selectbox(
+            get_text("risk_exposure"),
+            factor_exposicion['Clasificacion'].tolist(),
+            key="selected_exposicion",
+            index=factor_exposicion['Clasificacion'].tolist().index(st.session_state['selected_exposicion']) if st.session_state['selected_exposicion'] in factor_exposicion['Clasificacion'].tolist() else 0
+        )
     with col2:
         st.text_area(get_text("risk_description"), height=100, key="risk_description_input")
         st.slider(get_text("risk_impact_numeric"), 0, 100, value=st.session_state['impacto_numerico_slider'], key="impacto_numerico_slider")
@@ -284,13 +330,10 @@ with st.form("risk_form", clear_on_submit=False):
 
         st.checkbox(get_text("risk_deliberate_threat_present"), key="deliberate_threat_present_checkbox")
         
-        # Opciones para el selectbox de nivel de amenaza deliberada
         deliberate_threat_level_options = factores_amenaza_deliberada['Clasificacion'].tolist()
         
-        # Obtener el índice actual para el selectbox
-        current_level_index = 0
-        if st.session_state['deliberate_threat_level_selectbox'] in deliberate_threat_level_options:
-            current_level_index = deliberate_threat_level_options.index(st.session_state['deliberate_threat_level_selectbox'])
+        # Asegurarse de que el valor inicial sea válido para el selectbox
+        current_level_index = deliberate_threat_level_options.index(st.session_state['deliberate_threat_level_selectbox']) if st.session_state['deliberate_threat_level_selectbox'] in deliberate_threat_level_options else 0
 
         if st.session_state['deliberate_threat_present_checkbox']:
             st.selectbox(
@@ -301,11 +344,13 @@ with st.form("risk_form", clear_on_submit=False):
             )
         else:
             # Si el checkbox no está marcado, forzamos el selectbox a 'No' y lo deshabilitamos
+            # Asegurarse de que 'No' sea una opción válida antes de intentar acceder a su índice
+            no_index = deliberate_threat_level_options.index('No') if 'No' in deliberate_threat_level_options else 0
             st.session_state['deliberate_threat_level_selectbox'] = 'No' # Asegura que el valor sea 'No'
             st.selectbox(
                 get_text("risk_deliberate_threat_level"),
                 deliberate_threat_level_options,
-                index=deliberate_threat_level_options.index('No'), # Fuerza el índice a 'No'
+                index=no_index,
                 key="deliberate_threat_level_selectbox",
                 disabled=True # Deshabilita el selectbox
             )
@@ -332,22 +377,16 @@ else:
     styled_df = format_risk_dataframe(df_display)
     st.dataframe(styled_df, use_container_width=True, hide_row_index=True)
 
-    # Funciones para manejar edición y eliminación
-    # Se crea una única columna para los botones si el número de riesgos es alto
-    # para evitar demasiadas columnas y problemas de layout.
-    # Si quieres botones en columnas separadas por cada riesgo, necesitarías una lógica más compleja
-    # para manejar un número dinámico de columnas y evitar errores de índice cuando hay pocos riesgos.
-    
-    # Para simplicidad y robustez, presentamos los botones debajo de la tabla.
-    # Podemos agrupar los botones de edición y eliminación por riesgo.
+    # Botones de Editar y Eliminar para cada riesgo
+    st.markdown("<br>", unsafe_allow_html=True) # Espaciado
     for i, row in df_display.iterrows():
         unique_id = row['ID']
-        col_edit, col_delete = st.columns(2)
-        with col_edit:
+        cols_buttons = st.columns([1, 1, 4]) # Dos columnas para botones, una para espacio
+        with cols_buttons[0]:
             if st.button(get_text("edit_button"), key=f"edit_{unique_id}"):
                 st.session_state.current_edit_index = unique_id
                 st.experimental_rerun()
-        with col_delete:
+        with cols_buttons[1]:
             # Lógica de confirmación de eliminación
             if st.session_state.get(f'confirm_delete_{unique_id}', False):
                 st.warning(f"{get_text('confirm_delete')} '{row['Nombre del Riesgo']}'?")
@@ -359,133 +398,4 @@ else:
                         st.success(f"Riesgo '{row['Nombre del Riesgo']}' eliminado.")
                         st.experimental_rerun()
                 with col_confirm_no:
-                    if st.button("No", key=f"confirm_no_{unique_id}"):
-                        st.session_state[f'confirm_delete_{unique_id}'] = False
-                        st.experimental_rerun()
-            else:
-                if st.button(get_text("delete_button"), key=f"delete_{unique_id}"):
-                    st.session_state[f'confirm_delete_{unique_id}'] = True
-                    st.experimental_rerun()
-    st.markdown("---")
-
-
-# --- Cuadrante de riesgos (heatmap) ---
-st.header(get_text("risk_heatmap_title"))
-if st.session_state.riesgos.empty:
-    st.info(get_text("no_risks_for_heatmap"))
-else:
-    fig_heatmap = create_heatmap(st.session_state.riesgos, st.session_state.idioma)
-    st.plotly_chart(fig_heatmap, use_container_width=True)
-
-
-# --- Análisis de Pareto ---
-st.markdown("---")
-st.header(get_text("pareto_chart_title"))
-if st.session_state.riesgos.empty:
-    st.info(get_text("no_risks_for_pareto"))
-else:
-    fig_pareto = create_pareto_chart(st.session_state.riesgos, st.session_state.idioma)
-    st.plotly_chart(fig_pareto, use_container_width=True)
-
-
-# --- Simulación de Monte Carlo ---
-st.markdown("---")
-st.header(get_text("monte_carlo_simulation_title"))
-st.info(get_text("monte_carlo_info"))
-
-if st.session_state.riesgos.empty:
-    st.info(get_text("add_risks_for_montecarlo"))
-else:
-    selected_risk_mc_name = st.selectbox(
-        get_text("select_risk_for_mc"),
-        [""] + st.session_state.riesgos["Nombre del Riesgo"].tolist(),
-        key="monte_carlo_risk_selector"
-    )
-
-    if selected_risk_mc_name:
-        risk_mc = st.session_state.riesgos[st.session_state.riesgos["Nombre del Riesgo"] == selected_risk_mc_name].iloc[0]
-
-        st.subheader(f"{get_text('simulation_for_risk')}: {risk_mc['Nombre del Riesgo']}")
-
-        col_mc1, col_mc2 = st.columns(2)
-        with col_mc1:
-            st.metric(get_text("mc_risk_name"), risk_mc['Nombre del Riesgo'])
-            st.metric(get_text("mc_type_impact"), risk_mc['Tipo de Impacto'])
-            
-            # Asegurarse de que las clasificaciones existan antes de acceder a .iloc[0]
-            prob_display = factor_probabilidad[factor_probabilidad['Factor'] == risk_mc['Probabilidad']]['Clasificacion'].iloc[0] if not factor_probabilidad[factor_probabilidad['Factor'] == risk_mc['Probabilidad']].empty else f"{risk_mc['Probabilidad']:.2f}"
-            exp_display = factor_exposicion[factor_exposicion['Factor'] == risk_mc['Exposición']]['Clasificacion'].iloc[0] if not factor_exposicion[factor_exposicion['Factor'] == risk_mc['Exposición']].empty else f"{risk_mc['Exposición']:.2f}"
-
-            st.metric(get_text("mc_probability"), f"{prob_display}")
-            st.metric(get_text("mc_exposure"), f"{exp_display}")
-        with col_mc2:
-            st.metric(get_text("mc_impact_numeric"), f"{risk_mc['Impacto Numérico']:.0f}%")
-            st.metric(get_text("mc_control_effectiveness"), f"{risk_mc['Efectividad del Control (%)']:.0f}%")
-            
-            # Actualizar display de amenaza deliberada
-            amenaza_deliberada_display = get_text("yes") if risk_mc['Amenaza Deliberada (Checkbox)'] else get_text("no")
-            amenaza_deliberada_level_display = risk_mc['Nivel Amenaza Deliberada']
-            st.metric(get_text("mc_deliberate_threat"), f"{amenaza_deliberada_display} ({amenaza_deliberada_level_display})")
-            st.metric(get_text("mc_current_residual_risk"), f"{risk_mc['Riesgo Residual']:.2f} ({risk_mc['Clasificación']})")
-
-
-        valor_economico = st.number_input(
-            get_text("economic_value_asset"),
-            min_value=0.0,
-            value=100000.0,
-            step=10000.0,
-            format="%.2f",
-            key="mc_economic_value"
-        )
-        num_iteraciones = st.slider(get_text("num_montecarlo_iterations"), 1000, 100000, value=10000, step=1000, key="mc_iterations")
-
-        if st.button(get_text("run_montecarlo_button"), key="run_mc_button"):
-            if valor_economico <= 0:
-                st.warning(get_text("economic_value_positive"))
-            else:
-                with st.spinner(get_text("running_simulation")):
-                    ponderacion_impacto_mc = tabla_tipo_impacto[tabla_tipo_impacto['Tipo de Impacto'] == risk_mc['Tipo de Impacto']]['Ponderación'].iloc[0]
-                    
-                    riesgos_simulados, perdidas_simuladas, correlaciones = simular_montecarlo(
-                        probabilidad_base=risk_mc['Probabilidad'],
-                        exposicion_base=risk_mc['Exposición'],
-                        impacto_numerico_base=risk_mc['Impacto Numérico'],
-                        efectividad_base_pct=risk_mc['Efectividad del Control (%)'],
-                        nivel_amenaza_deliberada_str_base=risk_mc['Nivel Amenaza Deliberada'],
-                        es_amenaza_deliberada_checkbox_base=risk_mc['Amenaza Deliberada (Checkbox)'],
-                        ponderacion_impacto=ponderacion_impacto_mc,
-                        valor_economico=valor_economico,
-                        iteraciones=num_iteraciones
-                    )
-
-                if riesgos_simulados is not None and len(riesgos_simulados) > 0:
-                    st.success(get_text("simulation_complete"))
-
-                    col_results1, col_results2 = st.columns(2)
-                    with col_results1:
-                        st.subheader(get_text("simulated_risk_distribution"))
-                        fig_riesgo = plot_montecarlo_histogram(
-                            riesgos_simulados,
-                            get_text("histogram_risk_title"),
-                            get_text("risk_value_label"),
-                            st.session_state.idioma
-                        )
-                        st.plotly_chart(fig_riesgo, use_container_width=True)
-
-                    with col_results2:
-                        st.subheader(get_text("simulated_economic_losses"))
-                        fig_perdidas = plot_montecarlo_histogram(
-                            perdidas_simuladas,
-                            get_text("histogram_losses_title"),
-                            get_text("losses_value_label"),
-                            st.session_state.idioma
-                        )
-                        st.plotly_chart(fig_perdidas, use_container_width=True)
-
-                    st.subheader(get_text("sensitivity_analysis_title"))
-                    fig_sensitivity = create_sensitivity_plot(correlaciones, st.session_state.idioma)
-                    st.plotly_chart(fig_sensitivity, use_container_width=True)
-                else:
-                    st.error(get_text("simulation_failed"))
-    else:
-        st.info(get_text("select_risk_to_start_mc"))
+                    if st.button("No", key=
