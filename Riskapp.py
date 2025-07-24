@@ -200,8 +200,7 @@ def handle_form_submit():
             st.success(get_text("success_risk_added"))
 
         st.session_state.current_edit_index = -1 # Salir del modo edición
-        # YA NO LLAMES A reset_form_fields() AQUÍ
-        st.experimental_rerun() # Recargar la app para mostrar los cambios
+        # ¡IMPORTANTE! YA NO SE LLAMA A st.experimental_rerun() AQUÍ
 
 
 # --- Control de Idioma (ahora en la parte superior del cuerpo principal) ---
@@ -291,7 +290,8 @@ st.markdown("---") # Separador visual
 
 # --- Formulario de entrada ---
 st.header(get_text("risk_input_form_title"))
-# ¡CAMBIO CLAVE AQUÍ: clear_on_submit=True y se elimina la llamada a reset_form_fields()!
+# ¡ATENCIÓN! clear_on_submit=True se encarga de limpiar el formulario.
+# Ya no necesitamos resetear los campos manualmente en el callback.
 with st.form("risk_form", clear_on_submit=True):
     # Lógica de carga para edición (Esta lógica se ejecuta en cada rerun,
     # y los valores cargados sobrescribirán los de clear_on_submit si current_edit_index != -1)
@@ -317,9 +317,6 @@ with st.form("risk_form", clear_on_submit=True):
             st.session_state['deliberate_threat_present_checkbox'] = risk_to_edit["Amenaza Deliberada (Checkbox)"]
 
             deliberate_threat_level_options = factores_amenaza_deliberada['Clasificacion'].tolist()
-
-            # Asegurarse de que el valor inicial sea válido para el selectbox
-            current_level_index = deliberate_threat_level_options.index(st.session_state['deliberate_threat_level_selectbox']) if st.session_state['deliberate_threat_level_selectbox'] in deliberate_threat_level_options else 0
 
             # Si estamos editando y la amenaza deliberada estaba marcada, habilitamos el selectbox
             if st.session_state['deliberate_threat_present_checkbox']:
