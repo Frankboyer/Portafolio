@@ -13,3 +13,5 @@ joblib
 pyarrow
 altair
 tqdm
+polars==0.20.7
+@st.cache_data
