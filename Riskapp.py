@@ -88,7 +88,7 @@ if 'current_edit_index' not in st.session_state:
 
 # Función para obtener el primer valor seguro de un DataFrame
 def get_first_value(df, column):
-    return df[column].iloc[0] if not df.empty else ""
+    return df[column].iloc[0] if not df.empty and column in df.columns else ""
 
 if 'default_type_impact' not in st.session_state:
     st.session_state['default_type_impact'] = get_first_value(tabla_tipo_impacto, 'Tipo de Impacto')
@@ -216,53 +216,75 @@ with st.sidebar:
 
     # --- Matriz de Probabilidad ---
     st.subheader(get_text("matrix_prob_col"))
-    if matriz_probabilidad is not None and not matriz_probabilidad.empty:
-        df_prob_display = matriz_probabilidad[['Clasificacion', 'Factor', 'Justificacion']].rename(
+    required_cols_prob = ['Clasificacion', 'Factor', 'Justificacion']
+    if matriz_probabilidad is not None and not matriz_probabilidad.empty and all(col in matriz_probabilidad.columns for col in required_cols_prob):
+        df_prob_display = matriz_probabilidad[required_cols_prob].rename(
             columns={'Clasificacion': get_text("matrix_prob_col"), 'Factor': get_text("matrix_factor_col"), 'Justificacion': get_text("matrix_justification_col")}
         )
-        st.dataframe(df_prob_display, hide_row_index=True)
+        st.write("--- Depurando matriz_probabilidad ---")
+        st.write(f"Tipo de df_prob_display: {type(df_prob_display)}")
+        st.write(f"¿df_prob_display está vacío? {df_prob_display.empty}")
+        st.write(f"Columnas de df_prob_display: {df_prob_display.columns.tolist()}")
+        st.write("Primeras filas de df_prob_display:")
+        st.dataframe(df_prob_display.head(), hide_row_index=True) # Muestra las primeras filas para revisar el contenido
+        st.write("--- Fin de Depuración ---")
+        st.dataframe(df_prob_display, hide_row_index=True) # Línea 223 o similar
     else:
-        st.error("Error: La matriz de probabilidad no se pudo cargar o está vacía. Por favor, verifica el archivo 'data_config.py'.")
+        st.error("Error: La matriz de probabilidad no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas como 'Clasificacion', 'Factor', 'Justificacion'). Por favor, verifica el archivo 'data_config.py'.")
+        if matriz_probabilidad is not None:
+            st.write("Columnas disponibles en matriz_probabilidad:", matriz_probabilidad.columns.tolist())
 
     # --- Ponderaciones de Tipo de Impacto ---
     st.subheader(get_text("matrix_impact_type_title"))
-    if tabla_tipo_impacto is not None and not tabla_tipo_impacto.empty:
-        df_impact_type_display = tabla_tipo_impacto[['Tipo de Impacto', 'Ponderación', 'Justificación Técnica']].rename(
+    required_cols_impact_type = ['Tipo de Impacto', 'Ponderación', 'Justificación Técnica']
+    if tabla_tipo_impacto is not None and not tabla_tipo_impacto.empty and all(col in tabla_tipo_impacto.columns for col in required_cols_impact_type):
+        df_impact_type_display = tabla_tipo_impacto[required_cols_impact_type].rename(
             columns={'Tipo de Impacto': get_text("risk_type_impact"), 'Ponderación': get_text("matrix_factor_col"), 'Justificación Técnica': get_text("matrix_justification_col")}
         )
         st.dataframe(df_impact_type_display, hide_row_index=True)
     else:
-        st.error("Error: La tabla de tipos de impacto no se pudo cargar o está vacía. Por favor, verifica el archivo 'data_config.py'.")
+        st.error("Error: La tabla de tipos de impacto no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas). Por favor, verifica el archivo 'data_config.py'.")
+        if tabla_tipo_impacto is not None:
+            st.write("Columnas disponibles en tabla_tipo_impacto:", tabla_tipo_impacto.columns.tolist())
 
     # --- Factores de Exposición ---
     st.subheader(get_text("matrix_exposure_title"))
-    if factor_exposicion is not None and not factor_exposicion.empty:
-        df_exposure_display = factor_exposicion[['Clasificacion', 'Factor']].rename(
+    required_cols_exposure = ['Clasificacion', 'Factor']
+    if factor_exposicion is not None and not factor_exposicion.empty and all(col in factor_exposicion.columns for col in required_cols_exposure):
+        df_exposure_display = factor_exposicion[required_cols_exposure].rename(
             columns={'Clasificacion': get_text("matrix_exposure_title"), 'Factor': get_text("matrix_factor_col")}
         )
         st.dataframe(df_exposure_display, hide_row_index=True)
     else:
-        st.error("Error: La tabla de factores de exposición no se pudo cargar o está vacía. Por favor, verifica el archivo 'data_config.py'.")
+        st.error("Error: La tabla de factores de exposición no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas). Por favor, verifica el archivo 'data_config.py'.")
+        if factor_exposicion is not None:
+            st.write("Columnas disponibles en factor_exposicion:", factor_exposicion.columns.tolist())
 
     # --- Factores de Amenaza Deliberada ---
     st.subheader(get_text("matrix_threat_title"))
-    if factores_amenaza_deliberada is not None and not factores_amenaza_deliberada.empty:
-        df_threat_display = factores_amenaza_deliberada[['Clasificacion', 'Factor']].rename(
+    required_cols_threat = ['Clasificacion', 'Factor']
+    if factores_amenaza_deliberada is not None and not factores_amenaza_deliberada.empty and all(col in factores_amenaza_deliberada.columns for col in required_cols_threat):
+        df_threat_display = factores_amenaza_deliberada[required_cols_threat].rename(
             columns={'Clasificacion': get_text("matrix_threat_title"), 'Factor': get_text("matrix_factor_col")}
         )
         st.dataframe(df_threat_display, hide_row_index=True)
     else:
-        st.error("Error: La tabla de factores de amenaza deliberada no se pudo cargar o está vacía. Por favor, verifica el archivo 'data_config.py'.")
+        st.error("Error: La tabla de factores de amenaza deliberada no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas). Por favor, verifica el archivo 'data_config.py'.")
+        if factores_amenaza_deliberada is not None:
+            st.write("Columnas disponibles en factores_amenaza_deliberada:", factores_amenaza_deliberada.columns.tolist())
 
     # --- Factores de Efectividad de Control ---
     st.subheader(get_text("matrix_control_title"))
-    if efectividad_controles is not None and not efectividad_controles.empty:
-        df_control_display = efectividad_controles[['Clasificacion', 'Factor']].rename(
+    required_cols_control = ['Clasificacion', 'Factor']
+    if efectividad_controles is not None and not efectividad_controles.empty and all(col in efectividad_controles.columns for col in required_cols_control):
+        df_control_display = efectividad_controles[required_cols_control].rename(
             columns={'Clasificacion': get_text("matrix_control_title"), 'Factor': get_text("matrix_factor_col")}
         )
         st.dataframe(df_control_display, hide_row_index=True)
     else:
-        st.error("Error: La tabla de efectividad de controles no se pudo cargar o está vacía. Por favor, verifica el archivo 'data_config.py'.")
+        st.error("Error: La tabla de efectividad de controles no se pudo cargar correctamente (falta el archivo, está vacía o faltan columnas esperadas). Por favor, verifica el archivo 'data_config.py'.")
+        if efectividad_controles is not None:
+            st.write("Columnas disponibles en efectividad_controles:", efectividad_controles.columns.tolist())
 
 
 # --- Título ---
