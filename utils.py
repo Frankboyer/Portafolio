@@ -1,6 +1,5 @@
+from typing import Optional, Dict, Any
 import pandas as pd
-from typing import Any, Optional
-
 def get_text(key: str, idioma: str = 'es') -> str:
     """Obtiene texto traducido según clave e idioma"""
     from data_config import textos
