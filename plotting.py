@@ -1,257 +1,190 @@
 import plotly.graph_objects as go
+import plotly.express as px
 import pandas as pd
 import numpy as np
-import plotly.express as px
-import matplotlib.pyplot as plt # Importar matplotlib si lo vas a usar
 
-# Las matrices y tablas serán pasadas como argumentos desde riskapp.py
-# así que no necesitamos importarlas directamente aquí en plotting.py
-# PERO, para que esta función get_text dummy funcione para probar, la he incluido.
+# --- Helper para obtener textos (similar al de riskapp.py pero simplificado para este módulo) ---
+# Se asume que `textos` y `criticidad_límites` serán importados de data_config.py
+# Opcional: Podrías pasar el idioma directamente como parámetro a cada función de plotting si prefieres.
+from data_config import textos, matriz_probabilidad, matriz_impacto, criticidad_límites
 
-def create_heatmap(df_risks, matriz_probabilidad, matriz_impacto, idioma="es"):
-    if df_risks.empty:
+def get_text_plotting(key, idioma='es'):
+    """Obtiene el texto correspondiente a una clave en el idioma especificado."""
+    return textos[idioma].get(key, key)
+
+# --- Funciones de Trazado ---
+
+def create_heatmap(df_riesgos, matriz_probabilidad_df, matriz_impacto_df, idioma='es'):
+    """
+    Crea un mapa de calor interactivo de riesgos basado en Probabilidad vs Impacto.
+    """
+    if df_riesgos.empty:
         return None
 
-    df_risks_copy = df_risks.copy()
+    # Obtener las clasificaciones de probabilidad e impacto numérico
+    # Para el heatmap, necesitamos clasificaciones cualitativas de Probabilidad e Impacto.
+    # Usaremos las matrices de data_config para clasificar el 'Impacto Numérico' y 'Probabilidad' original del riesgo.
 
-    # --- Clasificación de Probabilidad para el Heatmap ---
-    # Asegurarse de que Probabilidad es un valor numérico (0-1)
-    # Los bordes de los bins para Probabilidad.
-    prob_bins_edges = sorted(list(matriz_probabilidad['Rango Min'].unique()) + [matriz_probabilidad['Rango Max'].max()])
-    prob_labels = matriz_probabilidad['Clasificacion'].tolist()
+    # Clasificar la Probabilidad original del riesgo
+    prob_bins = matriz_probabilidad_df['Rango Min'].tolist() + [matriz_probabilidad_df['Rango Max'].iloc[-1]]
+    prob_labels = matriz_probabilidad_df['Clasificacion'].tolist()
+    df_riesgos['Probabilidad_Clasificacion'] = pd.cut(
+        df_riesgos['Probabilidad'],
+        bins=prob_bins,
+        labels=prob_labels,
+        right=True, # Incluye el límite superior del intervalo
+        include_lowest=True # Incluye el límite inferior del primer intervalo
+    )
 
-    # Si hay un desajuste entre etiquetas y bordes de bins, ajustar.
-    if len(prob_labels) != len(prob_bins_edges) - 1:
-        # Esto es un respaldo; lo ideal es que tus rangos en data_config sean coherentes.
-        # Aquí, forzamos la creación de bordes equitativos para que pd.cut funcione.
-        min_prob_global = matriz_probabilidad['Rango Min'].min()
-        max_prob_global = matriz_probabilidad['Rango Max'].max()
-        prob_bins_edges = np.linspace(min_prob_global, max_prob_global, len(prob_labels) + 1).tolist()
+    # Clasificar el Impacto Numérico original del riesgo
+    impact_bins = matriz_impacto_df['Rango Min'].tolist() + [matriz_impacto_df['Rango Max'].iloc[-1]]
+    impact_labels = matriz_impacto_df['Clasificacion'].tolist()
+    df_riesgos['Impacto_Clasificacion'] = pd.cut(
+        df_riesgos['Impacto Numérico'],
+        bins=impact_bins,
+        labels=impact_labels,
+        right=True,
+        include_lowest=True
+    )
 
-    df_risks_copy['Prob_Bin'] = pd.cut(df_risks_copy['Probabilidad'],
-                                       bins=prob_bins_edges,
-                                       labels=prob_labels,
-                                       right=True,
-                                       include_lowest=True)
+    # Ordenar las categorías para asegurar el orden correcto en el heatmap
+    prob_order = matriz_probabilidad_df['Clasificacion'].tolist()
+    impact_order = matriz_impacto_df['Clasificacion'].tolist()
 
-    # --- Clasificación de Impacto Numérico para el Heatmap ---
-    # Asegurarse de que Impacto Numérico es un valor numérico (0-100)
-    # Los bordes de los bins para Impacto.
-    impact_bins_edges = sorted(list(matriz_impacto['Rango Min'].unique()) + [matriz_impacto['Rango Max'].max()])
-    impact_labels = matriz_impacto['Clasificacion'].tolist()
+    # Contar la frecuencia de riesgos por cada cuadrante
+    heatmap_data = df_riesgos.groupby(['Impacto_Clasificacion', 'Probabilidad_Clasificacion']).size().unstack(fill_value=0)
 
-    # Si hay un desajuste entre etiquetas y bordes de bins, ajustar.
-    if len(impact_labels) != len(impact_bins_edges) - 1:
-        min_impact_global = matriz_impacto['Rango Min'].min()
-        max_impact_global = matriz_impacto['Rango Max'].max()
-        impact_bins_edges = np.linspace(min_impact_global, max_impact_global, len(impact_labels) + 1).tolist()
+    # Reindexar para asegurar que todas las categorías estén presentes y en orden
+    heatmap_data = heatmap_data.reindex(index=impact_order, columns=prob_order).fillna(0)
 
-    df_risks_copy['Impact_Bin'] = pd.cut(df_risks_copy['Impacto Numérico'],
-                                        bins=impact_bins_edges,
-                                        labels=impact_labels,
-                                        right=True,
-                                        include_lowest=True)
-
-    # --- Crear la Matriz para el Heatmap ---
-    heatmap_data = df_risks_copy.groupby(['Prob_Bin', 'Impact_Bin']).size().unstack(fill_value=0)
-
-    ordered_prob_labels = matriz_probabilidad['Clasificacion'].tolist()
-    ordered_impact_labels = matriz_impacto['Clasificacion'].tolist()
-
-    # Reindexar para asegurar el orden correcto y rellenar celdas vacías con 0.
-    heatmap_data = heatmap_data.reindex(index=ordered_prob_labels, columns=ordered_impact_labels, fill_value=0)
-
-    # --- Creación del Heatmap con Plotly ---
+    # Crear el heatmap
     fig = go.Figure(data=go.Heatmap(
         z=heatmap_data.values,
         x=heatmap_data.columns,
         y=heatmap_data.index,
-        colorscale='Viridis',
-        colorbar=dict(title=f"{get_text('risk_count_title')}")
+        colorscale='YlOrRd',
+        colorbar=dict(title=get_text_plotting("risk_count_title", idioma)),
+        hovertemplate='<b>%{y}</b><br><b>%{x}</b><br>' + get_text_plotting("risk_count_title", idioma) + ': %{z}<extra></extra>'
     ))
 
     fig.update_layout(
-        title=f"{get_text('risk_heatmap_title')}",
-        xaxis_title=f"{get_text('impact_category_label')}",
-        yaxis_title=f"{get_text('probability_category_label')}",
-        xaxis=dict(side="top"),
-        yaxis=dict(autorange="reversed")
+        title=get_text_plotting("risk_heatmap_title", idioma),
+        xaxis_title=get_text_plotting("probability_category_label", idioma),
+        yaxis_title=get_text_plotting("impact_category_label", idioma),
+        xaxis=dict(side="top"), # Poner la probabilidad en la parte superior
+        height=500,
+        margin=dict(l=0, r=0, t=50, b=0) # Ajustar márgenes
     )
-
-    # Añadir texto a las celdas
-    annotations = []
-    # Usamos try-except para manejar el caso de heatmap_data vacía si no hay riesgos.
-    try:
-        max_count = heatmap_data.max().max() if not heatmap_data.empty else 0
-    except AttributeError: # Si heatmap_data es un Series (e.g. 1 row/col)
-        max_count = heatmap_data.max() if not heatmap_data.empty else 0
-    
-    for i, prob_label in enumerate(heatmap_data.index):
-        for j, impact_label in enumerate(heatmap_data.columns):
-            count = heatmap_data.loc[prob_label, impact_label]
-            annotations.append(go.layout.Annotation(
-                text=str(count),
-                x=impact_label,
-                y=prob_label,
-                xref="x1",
-                yref="y1",
-                showarrow=False,
-                # Ajuste del color del texto para visibilidad
-                font=dict(color="white" if count > max_count / 2 and max_count > 0 else "black")
-            ))
-    fig.update_layout(annotations=annotations)
-
     return fig
 
-def create_pareto_chart(df_risks, idioma="es"):
-    if df_risks.empty:
+
+def create_pareto_chart(df_riesgos, idioma='es'):
+    """
+    Crea un gráfico de Pareto mostrando los riesgos residuales por clasificación.
+    """
+    if df_riesgos.empty:
         return None
 
-    df_grouped = df_risks.groupby('Clasificación')['Riesgo Residual'].sum().sort_values(ascending=False).reset_index()
-    df_grouped.columns = ['Clasificación', 'Suma Riesgo Residual']
+    # Agrupar por clasificación y sumar el Riesgo Residual
+    pareto_data = df_riesgos.groupby('Clasificación')['Riesgo Residual'].sum().sort_values(ascending=False)
+    total_riesgo = pareto_data.sum()
 
-    df_grouped['Porcentaje'] = (df_grouped['Suma Riesgo Residual'] / df_grouped['Suma Riesgo Residual'].sum()) * 100
-    df_grouped['Porcentaje Acumulado'] = df_grouped['Porcentaje'].cumsum()
+    if total_riesgo == 0:
+        return None # Evitar división por cero si no hay riesgos significativos
 
-    clasificacion_label = get_text("classification_label")
-    sum_residual_risk_label = get_text("sum_residual_risk_label")
-    cumulative_percentage_label = get_text("cumulative_percentage_label")
-    pareto_chart_title = get_text("pareto_chart_title")
+    # Calcular porcentaje y porcentaje acumulado
+    pareto_data_df = pd.DataFrame(pareto_data).reset_index()
+    pareto_data_df.columns = [get_text_plotting("classification_label", idioma), get_text_plotting("sum_residual_risk_label", idioma)]
+    pareto_data_df[get_text_plotting("percentage_label", idioma)] = (pareto_data_df[get_text_plotting("sum_residual_risk_label", idioma)] / total_riesgo) * 100
+    pareto_data_df[get_text_plotting("cumulative_percentage_label", idioma)] = pareto_data_df[get_text_plotting("percentage_label", idioma)].cumsum()
 
+    # Crear el gráfico de barras para la suma de riesgo residual
     fig = go.Figure()
 
     fig.add_trace(go.Bar(
-        x=df_grouped[clasificacion_label if idioma == 'es' else 'Clasificación'],
-        y=df_grouped['Suma Riesgo Residual'],
-        name=sum_residual_risk_label,
-        marker_color='skyblue',
-        yaxis='y1'
+        x=pareto_data_df[get_text_plotting("classification_label", idioma)],
+        y=pareto_data_df[get_text_plotting("sum_residual_risk_label", idioma)],
+        name=get_text_plotting("sum_residual_risk_label", idioma),
+        marker_color='rgb(58, 116, 179)'
     ))
 
+    # Crear el gráfico de línea para el porcentaje acumulado
     fig.add_trace(go.Scatter(
-        x=df_grouped[clasificacion_label if idioma == 'es' else 'Clasificación'],
-        y=df_grouped['Porcentaje Acumulado'],
+        x=pareto_data_df[get_text_plotting("classification_label", idioma)],
+        y=pareto_data_df[get_text_plotting("cumulative_percentage_label", idioma)],
         mode='lines+markers',
-        name=cumulative_percentage_label,
-        line=dict(color='red', dash='dot'),
-        yaxis='y2'
+        name=get_text_plotting("cumulative_percentage_label", idioma),
+        yaxis='y2', # Usar un eje Y secundario
+        line=dict(color='red', width=2),
+        marker=dict(size=8, color='red')
     ))
 
+    # Actualizar diseño del gráfico
     fig.update_layout(
-        title_text=pareto_chart_title,
-        xaxis_title_text=clasificacion_label,
-        yaxis=dict(
-            title=sum_residual_risk_label,
-            side='left',
-            showgrid=False,
-            range=[0, df_grouped['Suma Riesgo Residual'].max() * 1.1]
-        ),
+        title=get_text_plotting("pareto_chart_title", idioma),
+        xaxis_title=get_text_plotting("classification_label", idioma),
+        yaxis_title=get_text_plotting("sum_residual_risk_label", idioma),
         yaxis2=dict(
-            title=cumulative_percentage_label,
-            side='right',
+            title=get_text_plotting("cumulative_percentage_label", idioma) + ' (%)',
             overlaying='y',
-            range=[0, 100],
-            tickvals=[0, 20, 40, 60, 80, 100],
-            showgrid=False
+            side='right',
+            range=[0, 100]
         ),
-        legend=dict(x=0.01, y=0.99, bgcolor='rgba(255,255,255,0.7)', bordercolor='rgba(0,0,0,0.5)')
+        hovermode="x unified",
+        height=500
     )
 
     return fig
 
-def plot_montecarlo_histogram(data, title, x_label, idioma="es"):
-    fig = go.Figure(data=[go.Histogram(x=data, nbinsx=50, marker_color='lightgreen')])
+def plot_montecarlo_histogram(data, title, x_label, idioma='es'):
+    """
+    Crea un histograma de los resultados de la simulación de Monte Carlo.
+    """
+    if data is None or len(data) == 0:
+        return go.Figure().update_layout(title="No data to display.")
 
-    mean_val = np.mean(data)
-    median_val = np.median(data)
-
-    fig.add_vline(x=mean_val, line_dash="dash", line_color="blue",
-                  annotation_text=f"Media: {mean_val:,.2f}", annotation_position="top right")
-    fig.add_vline(x=median_val, line_dash="dot", line_color="red",
-                  annotation_text=f"Mediana: {median_val:,.2f}", annotation_position="top left")
-
+    fig = px.histogram(x=data, nbins=50, title=title)
     fig.update_layout(
-        title_text=title,
-        xaxis_title_text=x_label,
-        yaxis_title_text=get_text("frequency_label"),
-        bargap=0.01
+        xaxis_title=x_label,
+        yaxis_title=get_text_plotting("frequency_label", idioma),
+        bargap=0.05,
+        height=400
     )
     return fig
 
-
-def create_sensitivity_plot(correlations_df, idioma="es"):
+def create_sensitivity_plot(correlations_df, idioma='es'):
+    """
+    Crea un gráfico de barras mostrando la correlación de los factores de riesgo con el riesgo residual.
+    """
     if correlations_df.empty:
         return None
 
-    correlations_df['Abs_Correlacion'] = correlations_df['Correlacion'].abs()
-    correlations_df = correlations_df['Correlacion'].sort_values(ascending=True).reset_index() # Solo 'Correlacion'
-    correlations_df.columns = ['Variable', 'Correlacion'] # Renombrar después del reset_index
+    # Asegurarse de que la columna 'Correlacion' existe
+    if 'Correlacion' not in correlations_df.columns:
+        # Esto debería ser manejado antes de llamar a esta función,
+        # pero es una seguridad. En principio, calculations.py ya la genera.
+        return None
 
-    fig = px.bar(correlations_df,
-                 x='Correlacion',
-                 y='Variable',
-                 orientation='h',
-                 title=get_text("correlation_plot_title"),
-                 labels={'Correlacion': get_text("correlation_coefficient_label"),
-                         'Variable': get_text("variable_label")},
-                 color='Correlacion',
-                 color_continuous_scale=px.colors.sequential.RdBu
-                )
+    correlations_df['Abs_Correlacion'] = correlations_df['Correlacion'].abs()
+    # Ordenar por el valor absoluto de la correlación para que los factores más influyentes estén arriba
+    correlations_df = correlations_df.sort_values(by='Abs_Correlacion', ascending=True)
+
+    fig = px.bar(
+        correlations_df,
+        x='Correlacion',
+        y='Variable',
+        orientation='h',
+        title=get_text_plotting("correlation_plot_title", idioma),
+        labels={'Correlacion': get_text_plotting("correlation_coefficient_label", idioma),
+                'Variable': get_text_plotting("variable_label", idioma)},
+        color='Correlacion', # Colorea por el valor de la correlación
+        color_continuous_scale=px.colors.sequential.RdBu, # Escala de color rojo-azul
+        range_color=[-1, 1] # Asegura que la escala de color siempre vaya de -1 a 1
+    )
 
     fig.update_layout(
-        xaxis_title=get_text("correlation_coefficient_label"),
-        yaxis_title=get_text("variable_label"),
-        xaxis_range=[-1, 1]
+        xaxis_range=[-1, 1], # Asegura que el eje X siempre vaya de -1 a 1 para correlaciones
+        height=400,
+        margin=dict(l=0, r=0, t=50, b=0) # Ajustar márgenes
     )
     return fig
-
-# --- Función Dummy get_text para plotting.py (NO LA REAL DE TU APP) ---
-# Esta función solo existe para que plotting.py pueda ser importado y sus funciones
-# llamadas sin error si no hay un Streamlit session_state activo.
-# La función get_text real de tu app está en riskapp.py y usa st.session_state.idioma
-def get_text(key):
-    texts_placeholder = {
-        'es': {
-            "risk_count_title": "Conteo de Riesgos",
-            "risk_heatmap_title": "Cuadrante de Riesgos: Conteo por Categoría",
-            "impact_category_label": "Categoría de Impacto",
-            "probability_category_label": "Categoría de Probabilidad",
-            "classification_label": "Clasificación",
-            "sum_residual_risk_label": "Suma Riesgo Residual",
-            "percentage_label": "Porcentaje",
-            "cumulative_percentage_label": "Porcentaje Acumulado",
-            "pareto_chart_title": "Análisis de Pareto por Clasificación de Riesgo",
-            "frequency_label": "Frecuencia",
-            "correlation_plot_title": "Análisis de Sensibilidad: Correlación con Riesgo Residual",
-            "correlation_coefficient_label": "Coeficiente de Correlación",
-            "variable_label": "Variable",
-            "histogram_risk_title": "Distribución del Riesgo Residual Simulado",
-            "risk_value_label": "Valor del Riesgo Residual",
-            "histogram_losses_title": "Distribución de Pérdidas Económicas Simuladas",
-            "losses_value_label": "Valor de la Pérdida Económica",
-            "factor": "Factor"
-        },
-        'en': {
-            "risk_count_title": "Risk Count",
-            "risk_heatmap_title": "Risk Quadrant: Count by Category",
-            "impact_category_label": "Impact Category",
-            "probability_category_label": "Probability Category",
-            "classification_label": "Classification",
-            "sum_residual_risk_label": "Sum of Residual Risk",
-            "percentage_label": "Percentage",
-            "cumulative_percentage_label": "Cumulative Percentage",
-            "pareto_chart_title": "Pareto Analysis by Risk Classification",
-            "frequency_label": "Frequency",
-            "correlation_plot_title": "Sensitivity Analysis: Correlation with Residual Risk",
-            "correlation_coefficient_label": "Correlation Coefficient",
-            "variable_label": "Variable",
-            "histogram_risk_title": "Simulated Residual Risk Distribution",
-            "risk_value_label": "Residual Risk Value",
-            "histogram_losses_title": "Simulated Economic Losses Distribution",
-            "losses_value_label": "Economic Loss Value",
-            "factor": "Factor"
-        }
-    }
-    # En tu app, la función real get_text en riskapp.py toma el idioma de session_state.
-    # Aquí es solo un fallback para pruebas o si plotting.py se usa solo.
-    return texts_placeholder.get('es', {}).get(key, key)
