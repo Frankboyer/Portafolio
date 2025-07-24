@@ -337,3 +337,22 @@ else:
                             get_text("histogram_risk_title"),
                             get_text("risk_value_label"),
                             st.session_state.idioma
+                        )
+                        st.plotly_chart(fig_riesgo, use_container_width=True)
+
+                        st.subheader(get_text("simulated_loss_distribution"))
+                        fig_perdida = plot_montecarlo_histogram(
+                            perdidas_simuladas,
+                            get_text("histogram_loss_title"),
+                            get_text("loss_value_label"),
+                            st.session_state.idioma
+                        )
+                        st.plotly_chart(fig_perdida, use_container_width=True)
+
+                    with col_results2:
+                        st.subheader(get_text("sensitivity_analysis_title"))
+                        fig_sensibilidad = create_sensitivity_plot(correlaciones, st.session_state.idioma)
+                        st.plotly_chart(fig_sensibilidad, use_container_width=True)
+                else:
+                    st.warning(get_text("simulation_no_data"))
+
