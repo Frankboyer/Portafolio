@@ -1,52 +1,52 @@
-from typing import Optional, Any, Union  # Solo lo esencial de typing
+from __future__ import annotations
+from typing import Optional, Any, Union
 import pandas as pd
 import polars as pl
+import numpy as np
 import streamlit as st
-from loguru import logger  # Opcional
+from pydantic import BaseModel  # Para validación de datos
+
+class RiskModel(BaseModel):
+    id: int
+    name: str
+    impact: float
+    probability: float
 
 @st.cache_data
-def get_text(key: str) -> str:
-    """Obtiene texto traducido o marcado"""
-    translations = {"welcome": "Bienvenido", "error": "Error"}
-    return translations.get(key, key)
-
-@st.cache_data
-def get_first_value(series: Union[pd.Series, pl.Series]) -> Any:
-    """Obtiene el primer valor de una serie"""
-    if isinstance(series, pd.Series):
-        return series.iloc[0]
-    return series[0]
-
-@st.cache_data
-def get_factor_value(factor: str) -> float:
-    """Obtiene factor numérico de un mapeo"""
-    factors = {"high": 1.0, "medium": 0.5, "low": 0.1}
-    return factors.get(factor.lower(), 0.0)
-
-def validate_impact_value(value: Union[int, float]) -> bool:
-    """Valida que el impacto esté en rango permitido"""
-    return 0 <= value <= 1.0
+def load_sample_data() -> Union[pd.DataFrame, pl.DataFrame]:
+    """Carga datos de ejemplo en formato Pandas o Polars"""
+    data = {
+        "risk_id": [1, 2, 3],
+        "risk_name": ["Security Risk", "Financial Risk", "Operational Risk"],
+        "impact": [0.8, 0.5, 0.3],
+        "probability": [0.7, 0.4, 0.2]
+    }
+    return pl.DataFrame(data)  # Cambiar a pd.DataFrame() si prefieres Pandas
 
 @st.cache_data
 def load_risk_for_edit(
     risk_id: int, 
     df: Union[pd.DataFrame, pl.DataFrame]
-) -> Optional[dict[str, Any]]:  # ¡Cambiado a dict en lugar de Dict!
+) -> Optional[dict[str, Any]]:
     """
-    Carga un riesgo específico para edición
+    Versión robusta que maneja ambos DataFrames:
+    - Usa .loc para Pandas
+    - Usa .filter para Polars
     """
     try:
         if isinstance(df, pd.DataFrame):
-            record = df[df["risk_id"] == risk_id].iloc[0].to_dict()
+            record = df.loc[df["risk_id"] == risk_id].iloc[0].to_dict()
         else:
             record = df.filter(pl.col("risk_id") == risk_id).to_dicts()[0]
-            
-        return {
-            "id": record.get("risk_id"),
-            "name": record.get("risk_name"),
-            "impact": float(record.get("impact", 0)),
-            "probability": float(record.get("probability", 0))
-        }
-    except (IndexError, KeyError) as e:
-        logger.error(f"Error loading risk {risk_id}: {str(e)}")
+        
+        validated = RiskModel(
+            id=int(record["risk_id"]),
+            name=str(record["risk_name"]),
+            impact=float(record["impact"]),
+            probability=float(record["probability"])
+        )
+        return validated.dict()
+    
+    except Exception as e:
+        st.error(f"Error loading risk {risk_id}: {str(e)}")
         return None
