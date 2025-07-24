@@ -1,5 +1,5 @@
-streamlit==1.10.0
-pandas==1.5.3  # Ajustamos pandas para mayor compatibilidad con Streamlit 1.10.0
-numpy==1.23.5  # Ajustamos numpy también
-plotly==5.10.0 # Ajustamos plotly para la versión 1.10.0 de streamlit
-openpyxl       # Si usas archivos .xlsx
+streamlit
+pandas
+numpy
+plotly
+openpyxl
