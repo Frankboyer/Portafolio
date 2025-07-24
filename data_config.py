@@ -1,3 +1,5 @@
+import pandas as pd
+
 # --- Matrices de Riesgo (Probabilidad vs. Impacto) ---
 matriz_probabilidad = pd.DataFrame({
     'Clasificacion': ['Muy Bajo', 'Bajo', 'Moderado', 'Alto', 'Muy Alto'],
