@@ -1,10 +1,13 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt # Puedes eliminar esto si no lo usas en ninguna otra parte
 
 # Importar desde los módulos locales
-from data_config import tabla_tipo_impacto, matriz_probabilidad, matriz_impacto, factor_exposicion, factor_probabilidad, efectividad_controles, criticidad_límites, textos
+from data_config import (
+    tabla_tipo_impacto, matriz_probabilidad, matriz_impacto,
+    factor_exposicion, factor_probabilidad, efectividad_controles,
+    criticidad_límites, textos
+)
 from calculations import clasificar_criticidad, calcular_criticidad, simular_montecarlo
 from plotting import create_heatmap, create_pareto_chart, plot_montecarlo_histogram, create_sensitivity_plot
 from utils import reset_form_fields, format_risk_dataframe
@@ -19,14 +22,10 @@ st.markdown("""
         background-color: #4CAF50;
         color: white;
         padding: 8px 16px;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
         font-size: 14px;
-        margin: 4px 2px;
-        cursor: pointer;
         border-radius: 8px;
         border: none;
+        cursor: pointer;
     }
     .stButton>button:hover {
         background-color: #45a049;
@@ -72,60 +71,48 @@ if 'riesgos' not in st.session_state:
         "Riesgo Residual", "Clasificación", "Color"
     ])
 if 'current_edit_index' not in st.session_state:
-    st.session_state.current_edit_index = -1 # -1 significa que no estamos editando
+    st.session_state.current_edit_index = -1  # -1 significa que no estamos editando
 
-# --- Inicializaciones Cruciales para Campos del Formulario ---
-if 'default_type_impact' not in st.session_state:
-    st.session_state['default_type_impact'] = tabla_tipo_impacto['Tipo de Impacto'].iloc[0]
-if 'default_probabilidad' not in st.session_state:
-    st.session_state['default_probabilidad'] = factor_probabilidad['Clasificacion'].iloc[0]
-if 'default_exposicion' not in st.session_state:
-    st.session_state['default_exposicion'] = factor_exposicion['Clasificacion'].iloc[0]
-if 'default_impacto_numerico' not in st.session_state:
-    st.session_state['default_impacto_numerico'] = 50
-if 'default_control_effectiveness' not in st.session_state:
-    st.session_state['default_control_effectiveness'] = 50
-
-# Claves reales de widgets inicializadas
+# Valores por defecto para los widgets
 if 'risk_name_input' not in st.session_state:
-    st.session_state['risk_name_input'] = ""
+    st.session_state.risk_name_input = ""
 if 'risk_description_input' not in st.session_state:
-    st.session_state['risk_description_input'] = ""
+    st.session_state.risk_description_input = ""
 if 'selected_type_impact' not in st.session_state:
-    st.session_state['selected_type_impact'] = st.session_state['default_type_impact']
+    st.session_state.selected_type_impact = tabla_tipo_impacto['Tipo de Impacto'].iloc[0]
 if 'selected_probabilidad' not in st.session_state:
-    st.session_state['selected_probabilidad'] = st.session_state['default_probabilidad']
+    st.session_state.selected_probabilidad = factor_probabilidad['Clasificacion'].iloc[0]
 if 'selected_exposicion' not in st.session_state:
-    st.session_state['selected_exposicion'] = st.session_state['default_exposicion']
+    st.session_state.selected_exposicion = factor_exposicion['Clasificacion'].iloc[0]
 if 'impacto_numerico_slider' not in st.session_state:
-    st.session_state['impacto_numerico_slider'] = st.session_state['default_impacto_numerico']
+    st.session_state.impacto_numerico_slider = 50
 if 'control_effectiveness_slider' not in st.session_state:
-    st.session_state['control_effectiveness_slider'] = st.session_state['default_control_effectiveness']
+    st.session_state.control_effectiveness_slider = 50
 if 'deliberate_threat_checkbox' not in st.session_state:
-    st.session_state['deliberate_threat_checkbox'] = False
+    st.session_state.deliberate_threat_checkbox = False
 
-# --- Función para obtener textos ---
+# --- Función para obtener textos según idioma ---
 def get_text(key):
     return textos[st.session_state.idioma].get(key, key)
 
 # --- Callback para enviar formulario ---
 def handle_form_submit():
-    nombre_riesgo = st.session_state['risk_name_input']
-    descripcion_riesgo = st.session_state['risk_description_input']
-    tipo_impacto = st.session_state['selected_type_impact']
-    probabilidad_str = st.session_state['selected_probabilidad']
-    exposicion_str = st.session_state['selected_exposicion']
-    impacto_numerico = st.session_state['impacto_numerico_slider']
-    efectividad_control = st.session_state['control_effectiveness_slider']
-    amenaza_deliberada = st.session_state['deliberate_threat_checkbox']
+    nombre_riesgo = st.session_state.risk_name_input
+    descripcion_riesgo = st.session_state.risk_description_input
+    tipo_impacto = st.session_state.selected_type_impact
+    probabilidad_str = st.session_state.selected_probabilidad
+    exposicion_str = st.session_state.selected_exposicion
+    impacto_numerico = st.session_state.impacto_numerico_slider
+    efectividad_control = st.session_state.control_effectiveness_slider
+    amenaza_deliberada = st.session_state.deliberate_threat_checkbox
 
     if not nombre_riesgo:
         st.error(get_text("error_risk_name_empty"))
         return
     else:
-        probabilidad_val = factor_probabilidad[factor_probabilidad['Clasificacion'] == probabilidad_str]['Factor'].iloc[0]
-        exposicion_val = factor_exposicion[factor_exposicion['Clasificacion'] == exposicion_str]['Factor'].iloc[0]
-        ponderacion_impacto_val = tabla_tipo_impacto[tabla_tipo_impacto['Tipo de Impacto'] == tipo_impacto]['Ponderación'].iloc[0]
+        probabilidad_val = factor_probabilidad.loc[factor_probabilidad['Clasificacion'] == probabilidad_str, 'Factor'].values[0]
+        exposicion_val = factor_exposicion.loc[factor_exposicion['Clasificacion'] == exposicion_str, 'Factor'].values[0]
+        ponderacion_impacto_val = tabla_tipo_impacto.loc[tabla_tipo_impacto['Tipo de Impacto'] == tipo_impacto, 'Ponderación'].values[0]
         amenaza_deliberada_factor = 1.0 if amenaza_deliberada else 0.0
 
         amenaza_inherente, amenaza_residual, amenaza_residual_ajustada, riesgo_residual_val = calcular_criticidad(
@@ -165,11 +152,8 @@ def handle_form_submit():
 
 # --- Sidebar ---
 with st.sidebar:
-    if st.checkbox(get_text("sidebar_language_toggle"), value=(st.session_state.idioma == 'en')):
-        st.session_state.idioma = 'en'
-    else:
-        st.session_state.idioma = 'es'
-
+    idioma_toggle = st.checkbox(get_text("sidebar_language_toggle"), value=(st.session_state.idioma == 'en'))
+    st.session_state.idioma = 'en' if idioma_toggle else 'es'
     st.markdown("---")
     st.header(get_text("tax_info_title"))
     st.info(get_text("tax_info_text"))
@@ -182,14 +166,14 @@ st.header(get_text("risk_input_form_title"))
 with st.form("risk_form", clear_on_submit=False):
     if st.session_state.current_edit_index != -1:
         risk_to_edit = st.session_state.riesgos.loc[st.session_state.current_edit_index]
-        st.session_state['risk_name_input'] = risk_to_edit["Nombre del Riesgo"]
-        st.session_state['risk_description_input'] = risk_to_edit["Descripción"]
-        st.session_state['selected_type_impact'] = risk_to_edit["Tipo de Impacto"]
-        st.session_state['selected_probabilidad'] = factor_probabilidad[factor_probabilidad['Factor'] == risk_to_edit["Probabilidad"]]['Clasificacion'].iloc[0]
-        st.session_state['selected_exposicion'] = factor_exposicion[factor_exposicion['Factor'] == risk_to_edit["Exposición"]]['Clasificacion'].iloc[0]
-        st.session_state['impacto_numerico_slider'] = int(risk_to_edit["Impacto Numérico"])
-        st.session_state['control_effectiveness_slider'] = int(risk_to_edit["Efectividad del Control (%)"])
-        st.session_state['deliberate_threat_checkbox'] = bool(risk_to_edit["Amenaza Deliberada"])
+        st.session_state.risk_name_input = risk_to_edit["Nombre del Riesgo"]
+        st.session_state.risk_description_input = risk_to_edit["Descripción"]
+        st.session_state.selected_type_impact = risk_to_edit["Tipo de Impacto"]
+        st.session_state.selected_probabilidad = factor_probabilidad.loc[factor_probabilidad['Factor'] == risk_to_edit["Probabilidad"], 'Clasificacion'].values[0]
+        st.session_state.selected_exposicion = factor_exposicion.loc[factor_exposicion['Factor'] == risk_to_edit["Exposición"], 'Clasificacion'].values[0]
+        st.session_state.impacto_numerico_slider = int(risk_to_edit["Impacto Numérico"])
+        st.session_state.control_effectiveness_slider = int(risk_to_edit["Efectividad del Control (%)"])
+        st.session_state.deliberate_threat_checkbox = bool(risk_to_edit["Amenaza Deliberada"])
         st.write(f"**{get_text('editing_risk')}**: {risk_to_edit['Nombre del Riesgo']}")
         st.info(get_text('edit_in_form'))
 
@@ -289,8 +273,8 @@ else:
         with col_mc1:
             st.metric(get_text("mc_risk_name"), risk_mc['Nombre del Riesgo'])
             st.metric(get_text("mc_type_impact"), risk_mc['Tipo de Impacto'])
-            prob_display = factor_probabilidad[factor_probabilidad['Factor'] == risk_mc['Probabilidad']]['Clasificacion'].iloc[0] if not factor_probabilidad[factor_probabilidad['Factor'] == risk_mc['Probabilidad']].empty else f"{risk_mc['Probabilidad']:.2f}"
-            exp_display = factor_exposicion[factor_exposicion['Factor'] == risk_mc['Exposición']]['Clasificacion'].iloc[0] if not factor_exposicion[factor_exposicion['Factor'] == risk_mc['Exposición']].empty else f"{risk_mc['Exposición']:.2f}"
+            prob_display = factor_probabilidad.loc[factor_probabilidad['Factor'] == risk_mc['Probabilidad'], 'Clasificacion'].values[0] if not factor_probabilidad.loc[factor_probabilidad['Factor'] == risk_mc['Probabilidad']].empty else f"{risk_mc['Probabilidad']:.2f}"
+            exp_display = factor_exposicion.loc[factor_exposicion['Factor'] == risk_mc['Exposición'], 'Clasificacion'].values[0] if not factor_exposicion.loc[factor_exposicion['Factor'] == risk_mc['Exposición']].empty else f"{risk_mc['Exposición']:.2f}"
 
             st.metric(get_text("mc_probability"), f"{prob_display}")
             st.metric(get_text("mc_exposure"), f"{exp_display}")
@@ -321,7 +305,7 @@ else:
                         impacto_numerico_base=risk_mc['Impacto Numérico'],
                         efectividad_base_pct=risk_mc['Efectividad del Control (%)'],
                         amenaza_deliberada_factor_base=risk_mc['Amenaza Deliberada'],
-                        ponderacion_impacto=tabla_tipo_impacto[tabla_tipo_impacto['Tipo de Impacto'] == risk_mc['Tipo de Impacto']]['Ponderación'].iloc[0],
+                        ponderacion_impacto=tabla_tipo_impacto.loc[tabla_tipo_impacto['Tipo de Impacto'] == risk_mc['Tipo de Impacto'], 'Ponderación'].values[0],
                         valor_economico=valor_economico,
                         iteraciones=num_iteraciones
                     )
@@ -354,5 +338,4 @@ else:
                         fig_sensibilidad = create_sensitivity_plot(correlaciones, st.session_state.idioma)
                         st.plotly_chart(fig_sensibilidad, use_container_width=True)
                 else:
-                    st.warning(get_text("simulation_no_data"))
-
+                    st.warning(get_text("simulation_failed"))
