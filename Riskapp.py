@@ -206,30 +206,41 @@ with st.sidebar:
 
     st.markdown("---")
     st.header(get_text("matrix_title"))
+
+    # --- Matriz de Probabilidad (CORREGIDO) ---
     st.subheader(get_text("matrix_prob_col"))
-    st.dataframe(matriz_probabilidad[['Clasificacion', 'Factor', 'Justificacion']].rename(
+    df_prob_display = matriz_probabilidad[['Clasificacion', 'Factor', 'Justificacion']].rename(
         columns={'Clasificacion': get_text("matrix_prob_col"), 'Factor': get_text("matrix_factor_col"), 'Justificacion': get_text("matrix_justification_col")}
-    ), hide_row_index=True)
+    )
+    st.dataframe(df_prob_display, hide_row_index=True)
 
+    # --- Ponderaciones de Tipo de Impacto (CORREGIDO) ---
     st.subheader(get_text("matrix_impact_type_title"))
-    st.dataframe(tabla_tipo_impacto[['Tipo de Impacto', 'Ponderación', 'Justificación Técnica']].rename(
+    df_impact_type_display = tabla_tipo_impacto[['Tipo de Impacto', 'Ponderación', 'Justificación Técnica']].rename(
         columns={'Tipo de Impacto': get_text("risk_type_impact"), 'Ponderación': get_text("matrix_factor_col"), 'Justificación Técnica': get_text("matrix_justification_col")}
-    ), hide_row_index=True)
+    )
+    st.dataframe(df_impact_type_display, hide_row_index=True)
 
+    # --- Factores de Exposición (CORREGIDO) ---
     st.subheader(get_text("matrix_exposure_title"))
-    st.dataframe(factor_exposicion[['Clasificacion', 'Factor']].rename(
+    df_exposure_display = factor_exposicion[['Clasificacion', 'Factor']].rename(
         columns={'Clasificacion': get_text("matrix_exposure_title"), 'Factor': get_text("matrix_factor_col")}
-    ), hide_row_index=True)
+    )
+    st.dataframe(df_exposure_display, hide_row_index=True)
 
+    # --- Factores de Amenaza Deliberada (CORREGIDO) ---
     st.subheader(get_text("matrix_threat_title"))
-    st.dataframe(factores_amenaza_deliberada[['Clasificacion', 'Factor']].rename(
+    df_threat_display = factores_amenaza_deliberada[['Clasificacion', 'Factor']].rename(
         columns={'Clasificacion': get_text("matrix_threat_title"), 'Factor': get_text("matrix_factor_col")}
-    ), hide_row_index=True)
+    )
+    st.dataframe(df_threat_display, hide_row_index=True)
 
+    # --- Factores de Efectividad de Control (CORREGIDO) ---
     st.subheader(get_text("matrix_control_title"))
-    st.dataframe(efectividad_controles[['Clasificacion', 'Factor']].rename(
+    df_control_display = efectividad_controles[['Clasificacion', 'Factor']].rename(
         columns={'Clasificacion': get_text("matrix_control_title"), 'Factor': get_text("matrix_factor_col")}
-    ), hide_row_index=True)
+    )
+    st.dataframe(df_control_display, hide_row_index=True)
 
 
 # --- Título ---
