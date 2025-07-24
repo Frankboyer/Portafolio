@@ -65,7 +65,7 @@ def simular_montecarlo(probabilidad_base, exposicion_base, impacto_numerico_base
         iteraciones (int): Número de iteraciones de la simulación.
 
     Returns:
-        tuple: (np.array de riesgos residuales simulados, np.array de pérdidas económicas simuladas, pd.DataFrame de correlaciones)
+        tuple: (np.array de riesgos residuales simulados, np.array de pérdidas económicas simuladas, pd.FDataFrame de correlaciones)
     """
     efectividad_base = efectividad_base_pct / 100.0
 
