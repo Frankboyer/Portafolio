@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt # Mantener si lo usas en alguna parte, aunque ya no en los histogramas
-                                # Si no lo usas para nada más, puedes eliminarlo.
+import matplotlib.pyplot as plt # Puedes eliminar esto si no lo usas en ninguna otra parte
 
 # Importar desde los módulos locales
 from data_config import tabla_tipo_impacto, matriz_probabilidad, matriz_impacto, factor_exposicion, factor_probabilidad, efectividad_controles, criticidad_límites, textos
@@ -62,8 +61,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Inicialización de Session State ---
-# Variables de estado de la sesión para mantener la información a través de las reruns de Streamlit.
-# Es crucial inicializar todas las claves aquí para evitar errores de acceso.
 if 'idioma' not in st.session_state:
     st.session_state.idioma = 'es'
 if 'riesgos' not in st.session_state:
@@ -78,42 +75,36 @@ if 'current_edit_index' not in st.session_state:
     st.session_state.current_edit_index = -1 # -1 significa que no estamos editando
 
 # --- Inicializaciones Cruciales para Campos del Formulario ---
-# Estas claves se usan para almacenar el estado de los widgets del formulario
-# y para que la función reset_form_fields() pueda limpiar los campos.
-# Se inicializan aquí para asegurar su existencia desde la primera ejecución.
+# Estos son los valores predeterminados que usaremos para resetear los campos o cuando no se edite.
+if 'default_type_impact' not in st.session_state:
+    st.session_state['default_type_impact'] = tabla_tipo_impacto['Tipo de Impacto'].iloc[0]
+if 'default_probabilidad' not in st.session_state:
+    st.session_state['default_probabilidad'] = factor_probabilidad['Clasificacion'].iloc[0]
+if 'default_exposicion' not in st.session_state:
+    st.session_state['default_exposicion'] = factor_exposicion['Clasificacion'].iloc[0]
+if 'default_impacto_numerico' not in st.session_state:
+    st.session_state['default_impacto_numerico'] = 50
+if 'default_control_effectiveness' not in st.session_state:
+    st.session_state['default_control_effectiveness'] = 50
+
+# Las claves reales de los widgets en session_state, inicializadas con los valores por defecto
 if 'risk_name_input' not in st.session_state:
     st.session_state['risk_name_input'] = ""
 if 'risk_description_input' not in st.session_state:
     st.session_state['risk_description_input'] = ""
-
-# Valores por defecto para selectbox y sliders (usados en la inicialización y el reseteo)
-if 'default_type_impact' not in st.session_state:
-    st.session_state['default_type_impact'] = tabla_tipo_impacto['Tipo de Impacto'].iloc[0]
-if 'selected_type_impact' not in st.session_state: # Clave real del selectbox
+if 'selected_type_impact' not in st.session_state:
     st.session_state['selected_type_impact'] = st.session_state['default_type_impact']
-
-if 'default_probabilidad' not in st.session_state:
-    st.session_state['default_probabilidad'] = factor_probabilidad['Clasificacion'].iloc[0]
-if 'selected_probabilidad' not in st.session_state: # Clave real del selectbox
+if 'selected_probabilidad' not in st.session_state:
     st.session_state['selected_probabilidad'] = st.session_state['default_probabilidad']
-
-if 'default_exposicion' not in st.session_state:
-    st.session_state['default_exposicion'] = factor_exposicion['Clasificacion'].iloc[0]
-if 'selected_exposicion' not in st.session_state: # Clave real del selectbox
+if 'selected_exposicion' not in st.session_state:
     st.session_state['selected_exposicion'] = st.session_state['default_exposicion']
-
-if 'default_impacto_numerico' not in st.session_state:
-    st.session_state['default_impacto_numerico'] = 50
-if 'impacto_numerico_slider' not in st.session_state: # Clave real del slider
+if 'impacto_numerico_slider' not in st.session_state:
     st.session_state['impacto_numerico_slider'] = st.session_state['default_impacto_numerico']
-
-if 'default_control_effectiveness' not in st.session_state:
-    st.session_state['default_control_effectiveness'] = 50
-if 'control_effectiveness_slider' not in st.session_state: # Clave real del slider
+if 'control_effectiveness_slider' not in st.session_state:
     st.session_state['control_effectiveness_slider'] = st.session_state['default_control_effectiveness']
-
 if 'deliberate_threat_checkbox' not in st.session_state:
     st.session_state['deliberate_threat_checkbox'] = False
+
 
 # --- Función para obtener textos en el idioma actual ---
 def get_text(key):
@@ -128,7 +119,7 @@ def handle_form_submit():
     Maneja la lógica de envío del formulario de riesgo.
     Esta función se llama cuando se presiona el botón de envío del formulario.
     """
-    nombre_riesgo = st.session_state['risk_name_input'] # Acceder a los valores a través de session_state
+    nombre_riesgo = st.session_state['risk_name_input']
     descripcion_riesgo = st.session_state['risk_description_input']
     tipo_impacto = st.session_state['selected_type_impact']
     probabilidad_str = st.session_state['selected_probabilidad']
@@ -139,6 +130,7 @@ def handle_form_submit():
 
     if not nombre_riesgo:
         st.error(get_text("error_risk_name_empty"))
+        return # Detener la ejecución si hay un error
     else:
         # Obtener valores numéricos de probabilidad, exposición y ponderación de impacto
         probabilidad_val = factor_probabilidad[factor_probabilidad['Clasificacion'] == probabilidad_str]['Factor'].iloc[0]
@@ -173,16 +165,18 @@ def handle_form_submit():
         }
 
         if st.session_state.current_edit_index != -1:
+            # Actualizar fila existente
             st.session_state.riesgos.loc[st.session_state.current_edit_index] = new_risk_data
             st.success(f"Riesgo '{nombre_riesgo}' actualizado exitosamente.")
         else:
+            # Añadir nueva fila
             st.session_state.riesgos = pd.concat([st.session_state.riesgos, pd.DataFrame([new_risk_data])], ignore_index=True)
             st.success(get_text("success_risk_added"))
 
         # Después de agregar/editar, reiniciar el índice de edición y los campos del formulario.
         st.session_state.current_edit_index = -1
         reset_form_fields() # Llama a la función de utils.py para resetear los campos
-        # st.rerun() # Ya no es necesario un st.rerun() explícito aquí, el callback lo maneja
+        st.rerun() # Necesario para reflejar los cambios en la tabla y los widgets
 
 # --- Sidebar para selección de idioma y texto de impuestos ---
 with st.sidebar:
@@ -204,55 +198,48 @@ st.header(get_text("risk_input_form_title"))
 
 # Formulario para agregar/editar riesgos
 with st.form("risk_form", clear_on_submit=False):
-    # Lógica para determinar los valores iniciales de los campos del formulario
+    # Lógica para cargar los datos del riesgo a editar en los campos del formulario
     if st.session_state.current_edit_index != -1:
         risk_to_edit = st.session_state.riesgos.loc[st.session_state.current_edit_index]
-        nombre_riesgo_default = risk_to_edit["Nombre del Riesgo"]
-        descripcion_default = risk_to_edit["Descripción"]
-        tipo_impacto_default = risk_to_edit["Tipo de Impacto"]
-        probabilidad_default = factor_probabilidad[factor_probabilidad['Factor'] == risk_to_edit["Probabilidad"]]['Clasificacion'].iloc[0] if not factor_probabilidad[factor_probabilidad['Factor'] == risk_to_edit["Probabilidad"]].empty else st.session_state['default_probabilidad']
-        exposicion_default = factor_exposicion[factor_exposicion['Factor'] == risk_to_edit["Exposición"]]['Clasificacion'].iloc[0] if not factor_exposicion[factor_exposicion['Factor'] == risk_to_edit["Exposición"]].empty else st.session_state['default_exposicion']
-        impacto_numerico_default = risk_to_edit["Impacto Numérico"]
-        efectividad_control_default = risk_to_edit["Efectividad del Control (%)"]
-        amenaza_deliberada_default = bool(risk_to_edit["Amenaza Deliberada"])
-    else:
-        # Modo Nuevo Riesgo: Usar los valores de session_state
-        nombre_riesgo_default = st.session_state['risk_name_input'] # Acceder directamente
-        descripcion_default = st.session_state['risk_description_input'] # Acceder directamente
-        tipo_impacto_default = st.session_state['selected_type_impact'] # Acceder directamente
-        probabilidad_default = st.session_state['selected_probabilidad'] # Acceder directamente
-        exposicion_default = st.session_state['selected_exposicion'] # Acceder directamente
-        impacto_numerico_default = st.session_state['impacto_numerico_slider'] # Acceder directamente
-        efectividad_control_default = st.session_state['control_effectiveness_slider'] # Acceder directamente
-        amenaza_deliberada_default = st.session_state['deliberate_threat_checkbox'] # Acceder directamente
+        # Actualizar directamente las claves de session_state que controlan los widgets
+        st.session_state['risk_name_input'] = risk_to_edit["Nombre del Riesgo"]
+        st.session_state['risk_description_input'] = risk_to_edit["Descripción"]
+        st.session_state['selected_type_impact'] = risk_to_edit["Tipo de Impacto"]
+        # Convertir el factor numérico de Probabilidad y Exposición de nuevo a su clasificación string
+        st.session_state['selected_probabilidad'] = factor_probabilidad[factor_probabilidad['Factor'] == risk_to_edit["Probabilidad"]]['Clasificacion'].iloc[0]
+        st.session_state['selected_exposicion'] = factor_exposicion[factor_exposicion['Factor'] == risk_to_edit["Exposición"]]['Clasificacion'].iloc[0]
+        st.session_state['impacto_numerico_slider'] = int(risk_to_edit["Impacto Numérico"])
+        st.session_state['control_effectiveness_slider'] = int(risk_to_edit["Efectividad del Control (%)"])
+        st.session_state['deliberate_threat_checkbox'] = bool(risk_to_edit["Amenaza Deliberada"])
+        st.write(f"**{get_text('editing_risk')}**: {risk_to_edit['Nombre del Riesgo']}")
+        st.info(get_text('edit_in_form'))
+    # Si no estamos editando, los campos ya están inicializados por defecto en Session State
 
-    # Definición de los campos del formulario utilizando las claves de session_state
     col1, col2 = st.columns(2)
     with col1:
-        st.text_input(get_text("risk_name"), value=nombre_riesgo_default, key="risk_name_input")
+        st.text_input(get_text("risk_name"), key="risk_name_input")
         st.selectbox(
             get_text("risk_type_impact"),
             tabla_tipo_impacto['Tipo de Impacto'].tolist(),
-            index=tabla_tipo_impacto['Tipo de Impacto'].tolist().index(tipo_impacto_default),
             key="selected_type_impact"
         )
         st.selectbox(
             get_text("risk_probability"),
             factor_probabilidad['Clasificacion'].tolist(),
-            index=factor_probabilidad['Clasificacion'].tolist().index(probabilidad_default),
             key="selected_probabilidad"
         )
         st.selectbox(
             get_text("risk_exposure"),
             factor_exposicion['Clasificacion'].tolist(),
-            index=factor_exposicion['Clasificacion'].tolist().index(exposicion_default),
             key="selected_exposicion"
         )
     with col2:
-        st.text_area(get_text("risk_description"), value=descripcion_default, height=100, key="risk_description_input")
-        st.slider(get_text("risk_impact_numeric"), 0, 100, value=int(impacto_numerico_default), key="impacto_numerico_slider")
-        st.slider(get_text("risk_control_effectiveness"), 0, 100, value=int(efectividad_control_default), key="control_effectiveness_slider")
-        st.checkbox(get_text("risk_deliberate_threat"), value=amenaza_deliberada_default, key="deliberate_threat_checkbox")
+        st.text_area(get_text("risk_description"), height=100, key="risk_description_input")
+        # ELIMINADO: value=int(impacto_numerico_default)
+        st.slider(get_text("risk_impact_numeric"), 0, 100, key="impacto_numerico_slider")
+        # ELIMINADO: value=int(efectividad_control_default)
+        st.slider(get_text("risk_control_effectiveness"), 0, 100, key="control_effectiveness_slider")
+        st.checkbox(get_text("risk_deliberate_threat"), key="deliberate_threat_checkbox")
 
     # Botón de envío del formulario, ahora con un callback
     st.form_submit_button(get_text("add_risk_button"), on_click=handle_form_submit)
@@ -264,6 +251,7 @@ st.header(get_text("risk_list_title"))
 if st.session_state.riesgos.empty:
     st.info(get_text("no_risks_added_yet"))
 else:
+    # Asegúrate de que las columnas están en el orden esperado para el formato
     st.dataframe(format_risk_dataframe(st.session_state.riesgos, st.session_state.idioma), use_container_width=True)
 
     col_edit, col_delete = st.columns(2)
@@ -272,8 +260,7 @@ else:
         if st.button(get_text("edit_selected_risk_button")):
             if risk_to_select_edit:
                 st.session_state.current_edit_index = st.session_state.riesgos[st.session_state.riesgos["Nombre del Riesgo"] == risk_to_select_edit].index[0]
-                st.info(f"{get_text('editing_risk')} '{risk_to_select_edit}'. {get_text('edit_in_form')}.")
-                st.rerun()
+                st.rerun() # Dispara un rerun para cargar los datos en el formulario
             else:
                 st.warning(get_text("please_select_risk_to_edit"))
 
@@ -283,12 +270,13 @@ else:
             if risk_to_select_delete:
                 st.session_state.riesgos = st.session_state.riesgos[st.session_state.riesgos["Nombre del Riesgo"] != risk_to_select_delete].reset_index(drop=True)
                 st.success(f"Riesgo '{risk_to_select_delete}' {get_text('successfully_deleted')}.")
+                # Si el riesgo que se estaba editando fue eliminado, resetear el estado de edición
                 if st.session_state.current_edit_index != -1 and not st.session_state.riesgos.empty:
                     if st.session_state.current_edit_index >= len(st.session_state.riesgos):
                         st.session_state.current_edit_index = -1
                 elif st.session_state.riesgos.empty:
                     st.session_state.current_edit_index = -1
-                reset_form_fields()
+                reset_form_fields() # Resetear los campos del formulario
                 st.rerun()
             else:
                 st.warning(get_text("please_select_risk_to_delete"))
@@ -302,7 +290,7 @@ if st.session_state.riesgos.empty:
 else:
     heatmap_fig = create_heatmap(st.session_state.riesgos, matriz_probabilidad, matriz_impacto, st.session_state.idioma)
     if heatmap_fig:
-        st.plotly_chart(heatmap_fig, use_container_width=True) # <-- CAMBIO CLAVE AQUÍ
+        st.plotly_chart(heatmap_fig, use_container_width=True)
     else:
         st.warning(get_text("heatmap_error"))
 
@@ -342,12 +330,16 @@ else:
         with col_mc1:
             st.metric(get_text("mc_risk_name"), risk_mc['Nombre del Riesgo'])
             st.metric(get_text("mc_type_impact"), risk_mc['Tipo de Impacto'])
-            st.metric(get_text("mc_probability"), f"{risk_mc['Probabilidad']:.2f} ({get_text('factor')})")
-            st.metric(get_text("mc_exposure"), f"{risk_mc['Exposición']:.2f} ({get_text('factor')})")
+            # Asegúrate de mapear los factores numéricos a sus clasificaciones si deseas mostrarlos así
+            prob_display = factor_probabilidad[factor_probabilidad['Factor'] == risk_mc['Probabilidad']]['Clasificacion'].iloc[0] if not factor_probabilidad[factor_probabilidad['Factor'] == risk_mc['Probabilidad']].empty else f"{risk_mc['Probabilidad']:.2f}"
+            exp_display = factor_exposicion[factor_exposicion['Factor'] == risk_mc['Exposición']]['Clasificacion'].iloc[0] if not factor_exposicion[factor_exposicion['Factor'] == risk_mc['Exposición']].empty else f"{risk_mc['Exposición']:.2f}"
+
+            st.metric(get_text("mc_probability"), f"{prob_display}")
+            st.metric(get_text("mc_exposure"), f"{exp_display}")
         with col_mc2:
-            st.metric(get_text("mc_impact_numeric"), f"{risk_mc['Impacto Numérico']}%")
-            st.metric(get_text("mc_control_effectiveness"), f"{risk_mc['Efectividad del Control (%)']}%")
-            st.metric(get_text("mc_deliberate_threat"), "Sí" if risk_mc['Amenaza Deliberada'] else "No")
+            st.metric(get_text("mc_impact_numeric"), f"{risk_mc['Impacto Numérico']:.0f}%")
+            st.metric(get_text("mc_control_effectiveness"), f"{risk_mc['Efectividad del Control (%)']:.0f}%")
+            st.metric(get_text("mc_deliberate_threat"), "Sí" if risk_mc['Amenaza Deliberada'] == 1.0 else "No")
             st.metric(get_text("mc_current_residual_risk"), f"{risk_mc['Riesgo Residual']:.2f} ({risk_mc['Clasificación']})")
 
         valor_economico = st.number_input(
@@ -388,8 +380,7 @@ else:
                             get_text("risk_value_label"),
                             st.session_state.idioma
                         )
-                        st.plotly_chart(fig_riesgo) # <-- CAMBIO CLAVE AQUÍ
-                        # plt.close(fig_riesgo) # Ya no es necesario para figuras de Plotly
+                        st.plotly_chart(fig_riesgo)
 
                     with col_results2:
                         st.subheader(get_text("simulated_economic_losses"))
@@ -399,15 +390,14 @@ else:
                             get_text("losses_value_label"),
                             st.session_state.idioma
                         )
-                        st.plotly_chart(fig_perdida) # <-- CAMBIO CLAVE AQUÍ
-                        # plt.close(fig_perdida) # Ya no es necesario para figuras de Plotly
+                        st.plotly_chart(fig_perdida)
 
                     st.markdown("---")
                     st.subheader(get_text("sensitivity_analysis_title"))
                     st.info(get_text("sensitivity_analysis_info"))
                     if correlaciones is not None and not correlaciones.empty:
                         sensitivity_fig = create_sensitivity_plot(correlaciones, st.session_state.idioma)
-                        st.plotly_chart(sensitivity_fig, use_container_width=True) # <-- CAMBIO CLAVE AQUÍ
+                        st.plotly_chart(sensitivity_fig, use_container_width=True)
                     else:
                         st.warning(get_text("no_sensitivity_data"))
                 else:
