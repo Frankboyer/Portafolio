@@ -1,52 +1,29 @@
-import streamlit as st
 import pandas as pd
-from data_config import criticidad_límites, textos, tabla_tipo_impacto, factor_probabilidad, factor_exposicion, factores_amenaza_deliberada
+from typing import Any, Optional
 
-# Función auxiliar para obtener textos específicos de este módulo
-def get_text_utils(key, idioma='es'):
-    return textos[idioma].get(key, key)
+def get_text(key: str, idioma: str = 'es') -> str:
+    """Obtiene texto traducido según clave e idioma"""
+    from data_config import textos
+    return textos.get(idioma, {}).get(key, f"[{key} no encontrado]")
 
-def reset_form_fields():
-    """Resetea los campos del formulario de entrada de riesgo a sus valores por defecto."""
-    st.session_state['risk_name_input'] = ""
-    st.session_state['risk_description_input'] = ""
+def get_first_value(df: pd.DataFrame, column: str) -> Any:
+    """Obtiene el primer valor de una columna de DataFrame"""
+    return df[column].iloc[0] if not df.empty and column in df.columns else None
 
-    # Asegúrate de que los valores por defecto existan en los DataFrames
-    st.session_state['selected_type_impact'] = tabla_tipo_impacto['Tipo de Impacto'].iloc[0] if not tabla_tipo_impacto.empty else ""
-    st.session_state['selected_probabilidad'] = factor_probabilidad['Clasificacion'].iloc[0] if not factor_probabilidad.empty else ""
-    st.session_state['selected_exposicion'] = factor_exposicion['Clasificacion'].iloc[0] if not factor_exposicion.empty else ""
+def get_factor_value(df: pd.DataFrame, lookup_value: str, factor_column: str = 'Factor') -> float:
+    """Obtiene valor numérico de factor a partir de su clasificación"""
+    filtered = df[df['Clasificacion'] == lookup_value]
+    if filtered.empty:
+        raise ValueError(f"Clasificación '{lookup_value}' no encontrada")
+    return float(filtered[factor_column].iloc[0])
 
-    st.session_state['impacto_numerico_slider'] = 50
-    st.session_state['control_effectiveness_slider'] = 50
-    st.session_state['deliberate_threat_present_checkbox'] = False
-    st.session_state['deliberate_threat_level_selectbox'] = factores_amenaza_deliberada['Clasificacion'].iloc[0] if not factores_amenaza_deliberada.empty else ""
+def validate_impact_value(value: float) -> bool:
+    """Valida que el valor de impacto esté en rango correcto"""
+    return 0 <= value <= 100
 
-    st.session_state.current_edit_index = -1 # Asegura que no estemos en modo edición
-
-def color_clasificacion(val):
-    """
-    Función de ayuda para aplicar colores de fondo basados en la clasificación del riesgo.
-    """
-    if isinstance(val, str):
-        val_lower = val.lower()
-        if val_lower in ['bajo', 'low']:
-            return 'background-color: #d4edda' # Verde claro
-        elif val_lower in ['medio', 'medium']:
-            return 'background-color: #ffc107' # Amarillo
-        elif val_lower in ['alto', 'high']:
-            return 'background-color: #fd7e14; color: white' # Naranja
-        elif val_lower in ['crítico', 'critical']:
-            return 'background-color: #dc3545; color: white' # Rojo
-    return '' # Default
-
-def format_risk_dataframe(df):
-    """
-    Aplica formato condicional al DataFrame de riesgos para Streamlit.
-    """
-    if df.empty:
-        return df
-    # Columnas a las que se aplica el estilo de color
-    columns_to_style = ['Clasificación']
-    # Aplica el estilo a las columnas seleccionadas
-    styled_df = df.style.applymap(color_clasificacion, subset=columns_to_style)
-    return styled_df
+def load_risk_for_edit(risk_id: int, df: pd.DataFrame) -> Optional[Dict[str, Any]]:
+    """Carga datos de un riesgo existente para edición"""
+    risk_data = df[df['ID'] == risk_id]
+    if not risk_data.empty:
+        return risk_data.iloc[0].to_dict()
+    return None
