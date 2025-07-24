@@ -7,7 +7,7 @@ import numpy as np
 from data_config import tabla_tipo_impacto, matriz_probabilidad, matriz_impacto, factor_exposicion, factor_probabilidad, efectividad_controles, criticidad_límites, textos, factores_amenaza_deliberada
 from calculations import clasificar_criticidad, calcular_criticidad, simular_montecarlo
 from plotting import create_heatmap, create_pareto_chart, plot_montecarlo_histogram, create_sensitivity_plot
-from utils import format_risk_dataframe # Solo importamos lo que se usa
+from utils import format_risk_dataframe # Seguimos importándola por ahora
 
 # --- Configuración de la página ---
 st.set_page_config(layout="wide", page_title="Calculadora de Riesgos", page_icon="🛡️")
@@ -355,12 +355,6 @@ with st.form("risk_form", clear_on_submit=True):
             key="selected_probabilidad",
             index=factor_probabilidad['Clasificacion'].tolist().index(st.session_state['selected_probabilidad']) if st.session_state['selected_probabilidad'] in factor_probabilidad['Clasificacion'].tolist() else 0
         )
-        st.selectbox(
-            get_text("risk_exposure"),
-            factor_exposicion['Clasificacion'].tolist(),
-            key="selected_exposicion",
-            index=factor_exposicion['Clasificacion'].tolist().index(st.session_state['selected_exposicion']) if st.session_state['selected_exposicion'] in factor_exposicion['Clasificacion'].tolist() else 0
-        )
     with col2:
         st.text_area(get_text("risk_description"), height=100, key="risk_description_input")
         st.slider(get_text("risk_impact_numeric"), 0, 100, value=st.session_state['impacto_numerico_slider'], key="impacto_numerico_slider")
@@ -394,6 +388,14 @@ with st.form("risk_form", clear_on_submit=True):
                 key="deliberate_threat_level_selectbox",
                 disabled=True # Deshabilita el selectbox
             )
+        # Añadí el st.selectbox de exposición aquí para que esté en la segunda columna.
+        # Si quieres que esté en la primera, muévelo de nuevo.
+        st.selectbox(
+            get_text("risk_exposure"),
+            factor_exposicion['Clasificacion'].tolist(),
+            key="selected_exposicion",
+            index=factor_exposicion['Clasificacion'].tolist().index(st.session_state['selected_exposicion']) if st.session_state['selected_exposicion'] in factor_exposicion['Clasificacion'].tolist() else 0
+        )
 
     submitted = st.form_submit_button(get_text("add_risk_button"))
     if submitted:
@@ -413,9 +415,10 @@ else:
     # Ordenar por ID para consistencia, o por Riesgo Residual
     df_display = st.session_state.riesgos.sort_values(by="Riesgo Residual", ascending=False).reset_index(drop=True)
 
-    # Formatear el DataFrame para visualización
-    styled_df = format_risk_dataframe(df_display)
-    st.dataframe(styled_df, use_container_width=True, hide_row_index=True)
+    # *** CAMBIO CLAVE AQUÍ: No usamos format_risk_dataframe temporalmente ***
+    # Si esta solución funciona, investigaremos cómo integrar el estilo sin errores.
+    st.dataframe(df_display, use_container_width=True, hide_row_index=True)
+
 
     # Botones de Editar y Eliminar para cada riesgo
     st.markdown("<br>", unsafe_allow_html=True) # Espaciado
