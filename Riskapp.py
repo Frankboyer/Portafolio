@@ -252,7 +252,7 @@ if st.session_state.riesgos.empty:
     st.info(get_text("no_risks_added_yet"))
 else:
     # Asegúrate de que las columnas están en el orden esperado para el formato
-    st.dataframe(format_risk_dataframe(st.session_state.riesgos, st.session_state.idioma), use_container_width=True)
+   st.write(format_risk_dataframe(st.session_state.riesgos, st.session_state.idioma, estilizado=True))
 
     col_edit, col_delete = st.columns(2)
     with col_edit:
