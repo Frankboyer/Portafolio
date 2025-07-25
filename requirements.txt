@@ -4,5 +4,5 @@ numpy
 matplotlib
 seaborn
 plotly
-json
 os
+python-3.10.12
