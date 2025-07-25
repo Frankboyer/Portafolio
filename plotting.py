@@ -1,82 +1,77 @@
-# --- 3. plotting.py ---
-# (Reutilizamos las funciones de plotting de la versión anterior)
-def create_heatmap(df_risks, matriz_probabilidad, matriz_impacto, idioma="es"):
-    if df_risks.empty: return None
-    prob_bins = [0] + matriz_probabilidad['Valor'].tolist() + [1.0]
-    prob_labels = matriz_probabilidad['Clasificacion'].tolist()
-    impact_bins = [0, 20, 40, 60, 80, 100]
-    impact_labels_es = ['Muy Bajo (0-20)', 'Bajo (21-40)', 'Medio (41-60)', 'Alto (61-80)', 'Muy Alto (81-100)']
-    impact_labels_en = ['Very Low (0-20)', 'Low (21-40)', 'Medium (41-60)', 'High (61-80)', 'Very High (81-100)']
-    impact_labels = impact_labels_es if idioma == "es" else impact_labels_en
+# modules/utils.py
+"""
+Utilidades para la interfaz de usuario, formateo de datos, y gestión de estado.
+Incluye funciones para gestionar perfiles, resetear campos, y formatear datos.
+"""
+import streamlit as st
+import pandas as pd
+import json
+import os
+from modules.data_config import criticidad_límites, PERFILES_BASE, tabla_tipo_impacto_global # Importar datos necesarios
+from modules.data_config import matriz_probabilidad_vals, factor_exposicion_vals # Mapeos
 
-    df_risks_copy = df_risks.copy()
-    df_risks_copy['Prob_Bin'] = pd.cut(df_risks_copy['Probabilidad'], bins=prob_bins, labels=prob_labels, right=True, include_lowest=True)
-    df_risks_copy['Impact_Bin'] = pd.cut(df_risks_copy['Impacto Numérico'], bins=impact_bins, labels=impact_labels, right=True, include_lowest=True)
-    pivot_table = df_risks_copy.pivot_table(values='Riesgo Residual', index='Prob_Bin', columns='Impact_Bin', aggfunc='mean')
-    pivot_table = pivot_table.reindex(index=prob_labels, columns=impact_labels)
+# --- Funciones de Utilidad para la UI ---
 
-    z_values = pivot_table.values.tolist()
-    text_values = []
-    for r in range(len(prob_labels)):
-        row_text = []
-        for c in range(len(impact_labels)):
-            val = pivot_table.iloc[r, c]
-            if pd.isna(val): row_text.append('N/A')
-            else:
-                for v_min, v_max, clasif_es, _, clasif_en in criticidad_límites:
-                    if v_min <= val <= v_max:
-                        row_text.append(f"{val:.2f}\n" + (clasif_es if idioma == "es" else clasif_en))
-                        break
-        text_values.append(row_text)
+def reset_form_fields():
+    """Reinicia los campos del formulario de entrada de riesgo a sus valores por defecto."""
+    st.session_state['risk_name_input'] = ""
+    st.session_state['risk_description_input'] = ""
+    st.session_state['selected_type_impact'] = st.session_state['default_type_impact']
+    st.session_state['selected_probabilidad'] = st.session_state['default_probabilidad']
+    st.session_state['selected_exposicion'] = st.session_state['default_exposicion']
+    st.session_state['impacto_numerico_slider'] = st.session_state['default_impacto_numerico']
+    st.session_state['control_effectiveness_slider'] = st.session_state['default_control_effectiveness']
+    st.session_state['deliberate_threat_checkbox'] = False
+    st.session_state['current_edit_index'] = -1
+    st.session_state['min_loss_input'] = st.session_state.get('default_min_loss', 0.0)
+    st.session_state['max_loss_input'] = st.session_state.get('default_max_loss', 0.0)
+    # Resetear selectores de perfil de riesgo
+    st.session_state['risk_profile_selector'] = list(st.session_state.perfiles_usuario.keys())[0] if st.session_state.perfiles_usuario else ""
+    st.session_state['risk_category_selector'] = ""
+    st.session_state['risk_subcategory_selector'] = ""
+    # Limpiar los inputs de severidad de impacto dinámicos
+    st.session_state['risk_impact_severities'] = {}
 
-    fig = go.Figure(data=go.Heatmap(
-        z=z_values, x=impact_labels, y=prob_labels, text=text_values, texttemplate="%{text}", hoverinfo="text",
-        colorscale=[[limit[0], limit[3]] for limit in criticidad_límites], showscale=True,
-        colorbar=dict(title=('Riesgo Residual Promedio' if idioma == "es" else 'Average Residual Risk'),
-                      tickvals=[(l[0]+l[1])/2 for l in criticidad_límites],
-                      ticktext=[(l[2] if idioma == "es" else l[4]) for l in criticidad_límites],
-                      lenmode="fraction", len=0.75, yanchor="middle", y=0.5)
-    ))
-    fig.update_layout(
-        title=('Mapa de Calor de Riesgos (Riesgo Residual Promedio)' if idioma == "es" else 'Risk Heatmap (Average Residual Risk)'),
-        xaxis_title=('Impacto Numérico' if idioma == "es" else 'Numeric Impact'),
-        yaxis_title=('Probabilidad de Amenaza' if idioma == "es" else 'Threat Probability'),
-        xaxis=dict(side='top'), height=450, margin=dict(t=80, b=20)
-    )
-    return fig
+def format_risk_dataframe(df_risks, idioma="es"):
+    """Formatea el DataFrame de riesgos aplicando colores a la columna 'Riesgo Residual'."""
+    if df_risks.empty: return df_risks
+    def get_color(val):
+        for v_min, v_max, _, color, _ in criticidad_límites:
+            if v_min <= val <= v_max: return f'background-color: {color};'
+        return ''
+    styled_df = df_risks.style.applymap(get_color, subset=['Riesgo Residual'])
+    return styled_df
 
-def create_pareto_chart(df_risks, idioma="es"):
-    if df_risks.empty: return None
-    df_sorted = df_risks.sort_values(by='Riesgo Residual', ascending=False).copy()
-    df_sorted['Riesgo Residual Acumulado'] = df_sorted['Riesgo Residual'].cumsum()
-    df_sorted['Porcentaje Acumulado'] = (df_sorted['Riesgo Residual Acumulado'] / df_sorted['Riesgo Residual'].sum()) * 100
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=df_sorted['Nombre del Riesgo'], y=df_sorted['Riesgo Residual'], name=('Riesgo Residual' if idioma == "es" else 'Residual Risk'), marker_color='#1f77b4'))
-    fig.add_trace(go.Scatter(x=df_sorted['Nombre del Riesgo'], y=df_sorted['Porcentaje Acumulado'], mode='lines+markers', name=('Porcentaje Acumulado' if idioma == "es" else 'Cumulative Percentage'), yaxis='y2', marker_color='#d62728'))
-    fig.update_layout(
-        title=('Gráfico de Pareto de Riesgos' if idioma == "es" else 'Risk Pareto Chart'),
-        xaxis_title=('Nombre del Riesgo' if idioma == "es" else 'Risk Name'),
-        yaxis_title=('Riesgo Residual' if idioma == "es" else 'Residual Risk'),
-        yaxis2=dict(title=('Porcentaje Acumulado' if idioma == "es" else 'Cumulative Percentage'), overlaying='y', side='right', range=[0, 100], tickvals=np.arange(0, 101, 10)),
-        legend=dict(x=0.01, y=0.99), height=450, margin=dict(t=80, b=20)
-    )
-    return fig
+# --- Funciones para Gestión de Perfiles (si no están en profile_manager.py) ---
+# Si las defines aquí, asegúrate de que profile_manager.py no las duplique.
+# Por claridad, asumimos que están en profile_manager.py y se importan.
 
-def plot_montecarlo_histogram(data, title, x_label, idioma="es"):
-    if data is None or len(data) == 0: return None
-    fig, ax = plt.subplots(figsize=(8, 5))
-    sns.histplot(data, kde=True, ax=ax, color='#28a745')
-    ax.set_title(title)
-    ax.set_xlabel(x_label)
-    ax.set_ylabel('Frecuencia' if idioma == "es" else 'Frequency')
-    plt.tight_layout()
-    return fig
+def get_text(key, context="app"):
+    """Devuelve el texto traducido, con contexto para jerarquía."""
+    lang = st.session_state.get('idioma', 'es')
+    if context == "app": return textos.get(lang, {}).get(key, key)
+    elif context == "hierarchy": return HIERARCHY_TRANSLATIONS.get(lang, {}).get(key, HIERARCHY_TRANSLATIONS.get('es', {}).get(key, key))
+    return key
 
-def create_sensitivity_plot(correlations, idioma="es"):
-    if correlations is None or correlations.empty: return None
-    fig = px.bar(x=correlations.index, y=correlations.values,
-                 title=('Análisis de Sensibilidad: Correlación con Pérdida Económica' if idioma == "es" else 'Sensitivity Analysis: Correlation with Economic Loss'),
-                 labels={'x': ('Factor de Riesgo' if idioma == "es" else 'Risk Factor'), 'y': ('Magnitud de Correlación' if idioma == "es" else 'Correlation Magnitude')},
-                 color_discrete_sequence=px.colors.qualitative.Plotly)
-    fig.update_layout(xaxis_tickangle=-45, height=400, margin=dict(t=80, b=20))
-    return fig
+def render_impact_sliders(profile_data, selected_category, current_severities_state, idioma="es"):
+    """Renderiza los sliders de severidad de impacto basados en la categoría seleccionada."""
+    impact_inputs_data = {}
+    if not profile_data or not selected_category: return impact_inputs_data
+
+    impacts_config_for_cat = profile_data.get("categorias", {}).get(selected_category, {}).get("impacts", {})
+    
+    if impacts_config_for_cat:
+        st.subheader(get_text("Impactos Detallados", context="app"))
+        for tipo_impacto, ponderacion_perfil in impacts_config_for_cat.items():
+            current_severidad = current_severities_state.get(tipo_impacto, 50)
+            impact_severity = st.slider(
+                f"{get_text('impact_type_label', context='app')}: {tipo_impacto} (Ponderación Perfil: {ponderacion_perfil}%)",
+                min_value=0, max_value=100, value=current_severidad, step=1,
+                key=f"impact_severity_{tipo_impacto}",
+                help=f"Severidad del impacto '{tipo_impacto}' para este riesgo."
+            )
+            impact_inputs_data[tipo_impacto] = impact_severity
+    else:
+        pass # No mostrar si no hay impactos definidos
+
+    return impact_inputs_data
