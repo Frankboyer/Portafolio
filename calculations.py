@@ -13,8 +13,8 @@ from typing import Dict, List, Tuple, Any
 # --- Importaciones ---
 from modules.data_config import (tabla_tipo_impacto_global, matriz_probabilidad, matriz_impacto,
                                   factor_exposicion, factor_probabilidad, efectividad_controles,
-                                  criticidad_límites, textos, PERFILES_BASE) # Importar datos necesarios
-# HIERARCHY_TRANSLATIONS no se usa directamente aquí, se maneja en app/utils
+                                  criticidad_límites, textos, PERFILES_BASE)
+# HIERARCHY_TRANSLATIONS no se usa directamente aquí, se maneja en app.py/utils.py
 
 # --- Mapeos ---
 matriz_probabilidad_vals = {
@@ -205,6 +205,7 @@ def simular_montecarlo(riesgos_para_simular, valor_economico_global, iteraciones
 
         df_sim_agg_final = pd.DataFrame()
         if sim_data_per_risk:
+            # Promediar los arrays simulados para el análisis de sensibilidad agregado
             avg_prob_100 = np.mean([data.get('prob_0', np.zeros(iteraciones)) for data in sim_data_per_risk.values() if 'prob_0' in data], axis=0)
             avg_exp_100 = np.mean([data.get('exp_0', np.zeros(iteraciones)) for data in sim_data_per_risk.values() if 'exp_0' in data], axis=0)
             avg_eff_100 = np.mean([data.get('eff_0', np.zeros(iteraciones)) for data in sim_data_per_risk.values() if 'eff_0' in data], axis=0)
