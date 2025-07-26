@@ -12,8 +12,11 @@ import os
 import numpy as np
 
 # --- Configuraciones Base de Perfiles de Riesgo ---
+# Los nombres aquí estarán en el idioma que definas como base (ej. español).
+# Si necesitas que los nombres de perfil, categoría, etc. también sean traducibles,
+# la estructura de PERFILES_BASE debería ser más compleja (ej. anidada por idioma).
 PERFILES_BASE = {
-    "Seguridad Patrimonial": {
+    "Seguridad Patrimonial": { # Este nombre se mostrará directamente
         "categorias": {
             "Físico": {"weight": 20, "impacts": {"Humano": 15, "Operacional": 10, "Económico": 5, "Reputacional": 10, "Legal": 5, "Ambiental": 15}},
             "Humano": {"weight": 15, "impacts": {"Humano": 25, "Operacional": 10, "Reputacional": 15, "Legal": 10}},
@@ -132,47 +135,6 @@ criticidad_límites = [
 ]
 
 # --- Diccionario para manejo de múltiples idiomas ---
-# Asegúrate de que HIERARCHY_TRANSLATIONS esté definido aquí
-HIERARCHY_TRANSLATIONS = {
-    "es": {
-        # Perfiles
-        "Seguridad Patrimonial": "Seguridad Patrimonial",
-        "Gestión de Proyectos": "Gestión de Proyectos",
-        # Categorías
-        "Físico": "Físico", "Humano": "Humano", "Infraestructura": "Infraestructura",
-        "Tecnológico": "Tecnológico", "Legal": "Legal", "Financiero": "Financiero",
-        "Reputacional": "Reputacional", "Operativo": "Operativo", "Ambiental": "Ambiental",
-        "Tiempo": "Tiempo", "Costo": "Costo", "Alcance": "Alcance", "Calidad": "Calidad",
-        "Técnico": "Técnico", "Humanos": "Humanos", "Comunicación": "Comunicación",
-        "Organizacional": "Organizacional", "Proveedores": "Proveedores",
-        "Contractual / Legal": "Contractual / Legal", "Externo": "Externo",
-        # Subcategorías (ejemplos)
-        "Robo": "Robo", "Intrusión": "Intrusión", "Sabotaje": "Sabotaje", "Vandalismo": "Vandalismo",
-        "Acceso no autorizado": "Acceso no autorizado", "Error humano": "Error humano", "Amenaza interna": "Amenaza interna",
-        "Retrasos en entregables": "Retrasos en entregables", "Dependencias críticas": "Dependencias críticas",
-        # ... (añadir todas las subcategorías traducidas) ...
-    },
-    "en": {
-        # Perfiles
-        "Seguridad Patrimonial": "Asset Security",
-        "Gestión de Proyectos": "Project Management",
-        # Categorías
-        "Físico": "Physical", "Humano": "Human", "Infraestructura": "Infrastructure",
-        "Tecnológico": "Technological", "Legal": "Legal", "Financiero": "Financial",
-        "Reputacional": "Reputational", "Operativo": "Operational", "Ambiental": "Environmental",
-        "Tiempo": "Time", "Costo": "Cost", "Alcance": "Scope", "Calidad": "Quality",
-        "Técnico": "Technical", "Humanos": "Human Resources", "Comunicación": "Communication",
-        "Organizacional": "Organizational", "Proveedores": "Vendors",
-        "Contractual / Legal": "Contractual / Legal", "Externo": "External",
-        # Subcategorías (ejemplos)
-        "Robo": "Theft", "Intrusión": "Intrusion", "Sabotaje": "Sabotage", "Vandalismo": "Vandalism",
-        "Acceso no autorizado": "Unauthorized Access", "Error humano": "Human Error", "Amenaza interna": "Insider Threat",
-        "Retrasos en entregables": "Delivery Delays", "Dependencias críticas": "Critical Dependencies",
-        # ... (añadir todas las subcategorías traducidas) ...
-    }
-}
-
-# --- Textos generales para la UI ---
 textos = {
     "es": {
         "sidebar_language_toggle": "English", "app_title": "Calculadora de Riesgos Integral",
@@ -241,13 +203,61 @@ textos = {
         "impact_weight_label": "Ponderación del Impacto"
     },
     "en": {
-        # ... (Traducciones al inglés) ...
-        "risk_impact_numeric": "Impact Severity (0-100)",
-        "add_impact_slider": "Add Impact Severity",
-        "impact_type_label": "Impact Type",
-        "impact_severity_label": "Severity (0-100)",
-        "impact_weight_label": "Impact Weight",
-        "risk_residual_percent": "Residual Risk (%)",
+        "sidebar_language_toggle": "Español", "app_title": "Risk Calculator and Monte Carlo Simulator",
+        "tax_info_title": "Tax Considerations",
+        "tax_info_text": "The tax implications of risk losses can be complex and vary significantly by jurisdiction and business type. This section provides general information. It is crucial to consult a professional tax advisor to understand how risk-related losses might affect your specific tax situation, including potential deductions, credits, or accounting treatments. Factors such as the nature of the loss (e.g., operational vs. capital), the legal structure of the entity, and local and international tax laws are determining factors. This simulator does not provide tax advice.",
+        "risk_input_form_title": "1. Risk Data Input", "risk_name": "Risk Name", "risk_description": "Detailed Risk Description",
+        "risk_type_impact": "Primary Impact Type",
+        "risk_probability": "Probability of Occurrence (Inherent Threat)", "risk_exposure": "Exposure (Inherent Threat)",
+        "risk_impact_numeric": "Numeric Impact (0-100)",
+        "risk_control_effectiveness": "Control Effectiveness (%)", "risk_deliberate_threat": "Deliberate Threat?",
+        "add_risk_button": "Add Risk", "error_risk_name_empty": "Please enter a name for the risk.",
+        "success_risk_added": "Risk added successfully.",
+        "deterministic_results_title": "2. Deterministic Model Results",
+        "inherent_threat": "Inherent Threat", "residual_threat": "Residual Threat",
+        "adjusted_residual_threat": "Adjusted Residual Threat", "residual_risk": "Residual Risk",
+        "classification": "Classification",
+        "montecarlo_input_title": "3. Monte Carlo Simulation Setup",
+        "economic_value_asset": "Economic Value of Asset at Risk (USD)", "num_iterations": "Number of Monte Carlo Iterations",
+        "run_montecarlo_button": "Run Monte Carlo Simulation",
+        "montecarlo_results_title": "4. Monte Carlo Simulation Results",
+        "expected_loss": "Expected Loss (Mean)", "median_loss": "Median Loss (50th Percentile)",
+        "p5_loss": "5th Percentile Loss", "p90_loss": "90th Percentile Loss",
+        "max_loss": "Maximum Simulated Loss", "cvar_95": "CVaR (95% - Tail Risk)",
+        "sensitivity_analysis_title": "Sensitivity Analysis (Correlation with Economic Loss)",
+        "added_risks_title": "5. Accumulated Evaluated Risks",
+        "download_excel_button": "Download Data to Excel", "no_risks_yet": "No risks have been added yet.",
+        "risk_heatmap_title": "6. Risk Heatmap (Deterministic Model)",
+        "risk_pareto_chart_title": "7. Risk Pareto Chart",
+        "risk_distribution_title": "8. Simulated Residual Risk Distribution (Index)",
+        "economic_loss_distribution_title": "9. Simulated Economic Loss Distribution (USD)",
+        "edit_risk": "Edit", "delete_risk": "Delete",
+        "confirm_delete": "Are you sure you want to delete this risk?", "risk_deleted": "Risk deleted successfully.",
+        "select_risk_to_simulate": "Select Risk to Simulate",
+        "all_risks_for_simulation": "All Risks (Aggregated)",
+        "simulate_button": "Simulate Selected Risk(s)",
+        "custom_profile_creation": "Create/Edit Custom Profile",
+        "profile_name_input": "Profile Name",
+        "category_name_input": "Category Name",
+        "category_weight_input": "Category Weight (%)",
+        "add_category_button": "Add Category",
+        "save_profile_button": "Save Profile",
+        "delete_profile_button": "Delete Profile",
+        "edit_profile_button": "Edit Profile",
+        "add_subcategory_button": "Add Subcategory",
+        "subcategory_name_input": "Subcategory Name",
+        "profile_saved": "Profile saved successfully.",
+        "profile_deleted": "Profile deleted successfully.",
+        "profile_updated": "Profile updated successfully.",
+        "profile_name_empty": "Profile name cannot be empty.",
+        "profile_name_exists": "A profile with this name already exists.",
+        "category_weight_invalid": "Category weight must be between 0 and 100, and total profile weights cannot exceed 100.",
+        "category_name_empty": "Category name cannot be empty.",
+        "subcategory_name_empty": "Subcategory name cannot be empty.",
+        "no_risks_to_simulate": "No risks have been added to simulate.",
+        "select_at_least_one_risk": "Please select at least one risk to simulate.",
+        "min_loss_input_label": "Min Potential Loss (USD)",
+        "max_loss_input_label": "Max Potential Loss (USD)",
         "max_theoretical_risk": "Max Theoretical Profile Risk"
     }
 }
