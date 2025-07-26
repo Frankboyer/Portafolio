@@ -15,7 +15,6 @@ from typing import Dict, List, Tuple, Any
 from modules.data_config import (tabla_tipo_impacto_global, matriz_probabilidad, matriz_impacto,
                                   factor_exposicion, factor_probabilidad, efectividad_controles,
                                   criticidad_límites, textos, PERFILES_BASE) # Importar todos los datos necesarios
-from modules.utils import get_text # Importar get_text si está en utils
 
 # --- Mapeos ---
 matriz_probabilidad_vals = {
@@ -24,8 +23,6 @@ matriz_probabilidad_vals = {
 factor_exposicion_vals = {
     'Muy Baja': 0.1, 'Baja': 0.3, 'Media': 0.6, 'Alta': 0.9, 'Muy Alta': 1.0
 }
-
-# --- Funciones de Cálculo ---
 
 def clasificar_criticidad(valor, idioma="es"):
     """Clasifica un valor numérico de riesgo (0-1) en una categoría y color."""
@@ -61,9 +58,11 @@ def calcular_criticidad(probabilidad_clasificacion, exposicion_clasificacion, am
         # Calcular el Impacto Total Ponderado
         impacto_total_ponderado = 0.0
         # Usamos las ponderaciones globales de tabla_tipo_impacto_global
+        # Si las ponderaciones fueran dinámicas por perfil/categoría, esta lógica debería cambiar.
         ponderaciones_globales = dict(zip(tabla_tipo_impacto_global['Tipo de Impacto'], tabla_tipo_impacto_global['Ponderación']))
 
         for tipo_impacto, severidad_valor in severidades_impacto_dict.items():
+            # Si el tipo de impacto no está en las ponderaciones globales, se puede asignar un valor por defecto o ignorar
             ponderacion_global = ponderaciones_globales.get(tipo_impacto, 0)
             
             severidad_norm = float(severidad_valor) / 100.0
@@ -72,7 +71,7 @@ def calcular_criticidad(probabilidad_clasificacion, exposicion_clasificacion, am
             impacto_ponderado_i = severidad_norm * ponderacion_norm
             impacto_total_ponderado += impacto_ponderado_i
         
-        # Normalizar el impacto total ponderado si es necesario (asumimos que las ponderaciones globales suman 100)
+        # Normalizar el impacto total ponderado si es necesario (asumimos que la suma de ponderaciones globales es 100)
 
         amenaza_inherente = probabilidad * exposicion
         amenaza_residual = amenaza_inherente * (1 - efectividad_factor)
@@ -163,8 +162,9 @@ def simular_montecarlo(riesgos_para_simular, valor_economico_global, iteraciones
         sigma_comun_factor = 0.1 # Sigma para factores (0-1)
 
         for idx_risk, riesgo in enumerate(riesgos_para_simular):
-            probabilidad_base_factor = float(riesgo['Probabilidad']) # Factor 0-1
-            exposicion_base_factor = float(riesgo['Exposición'])     # Factor 0-1
+            # Parámetros base del riesgo (Factores 0-1)
+            probabilidad_base_factor = float(riesgo['Probabilidad'])
+            exposicion_base_factor = float(riesgo['Exposición'])
             efectividad_base_pct = riesgo['Efectividad del Control (%)']
             efectividad_base = efectividad_base_pct / 100.0
             amenaza_deliberada_factor_base = 1 if riesgo['Amenaza Deliberada'] == 'Sí' else 0
@@ -186,6 +186,7 @@ def simular_montecarlo(riesgos_para_simular, valor_economico_global, iteraciones
             loss_range_mid = (min_loss_usd + max_loss_usd) / 2
             loss_range_std = (max_loss_usd - min_loss_usd) / 4 if max_loss_usd > min_loss_usd else 0
 
+            # Arrays para resultados de este riesgo
             riesgo_residual_sim_risk = np.zeros(iteraciones)
             perdidas_usd_sim_risk = np.zeros(iteraciones)
             sim_data_risk_dict = {}
@@ -247,4 +248,3 @@ def simular_montecarlo(riesgos_para_simular, valor_economico_global, iteraciones
     except Exception as e:
         print(f"Error en simular_montecarlo: {e}")
         return np.array([]), np.array([]), None, None
-        
