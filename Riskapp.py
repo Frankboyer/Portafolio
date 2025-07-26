@@ -22,8 +22,8 @@ from modules.data_config import (tabla_tipo_impacto_global, matriz_probabilidad,
                                   criticidad_límites, textos, PERFILES_BASE, HIERARCHY_TRANSLATIONS)
 from modules.calculations import clasificar_criticidad, calcular_criticidad, simular_montecarlo, calcular_max_theoretical_risk
 from modules.plotting import create_heatmap, create_pareto_chart, plot_montecarlo_histogram, create_sensitivity_plot
-from modules.utils import reset_form_fields, format_risk_dataframe, get_text, render_impact_sliders # Importar todas las utilidades
-from modules.profile_manager import load_profiles, save_profiles, get_profile_data, delete_profile, update_profile, add_profile
+from modules.utils import reset_form_fields, format_risk_dataframe, get_text, render_impact_sliders # Utilidades
+from modules.profile_manager import load_profiles, save_profiles, get_profile_data, delete_profile, update_profile, add_profile # Gestor de perfiles
 
 # --- Configuración de la página ---
 st.set_page_config(layout="wide", page_title="Calculadora de Riesgos Integral", icon="🛡️")
@@ -398,9 +398,8 @@ with col_form:
                     st.session_state.risk_name_input = row['Nombre del Riesgo']
                     st.session_state.risk_description_input = row['Descripción']
                     st.session_state.selected_type_impact = row['Tipo de Impacto']
-                    # Configurar selectores de Probabilidad y Exposición
-                    st.session_state.selected_probabilidad = row['Probabilidad'] # Factor numérico -> búsqueda de clasificación
-                    st.session_state.selected_exposicion = row['Exposición']     # Factor numérico -> búsqueda de clasificación
+                    st.session_state.selected_probabilidad = row['Probabilidad'] # Factor numérico
+                    st.session_state.selected_exposicion = row['Exposición']     # Factor numérico
                     st.session_state.impacto_numerico_slider = row['Impacto Numérico']
                     st.session_state.control_effectiveness_slider = row['Efectividad del Control (%)']
                     st.session_state.deliberate_threat_checkbox = (row['Amenaza Deliberada'] == 'Sí')
@@ -411,7 +410,7 @@ with col_form:
                     st.session_state.risk_profile_selector = row.get('Perfil', list(st.session_state.perfiles_usuario.keys())[0])
                     st.session_state.risk_category_selector = row.get('Categoria', '')
                     st.session_state.risk_subcategory_selector = row.get('Subcategoria', '')
-                    # Cargar las severidades de impacto dinámicas guardadas
+                    # Cargar las severidades de impacto guardadas
                     st.session_state['risk_impact_severities'] = row.get('Impactos Detallados', {})
                     
                     st.rerun()
@@ -572,4 +571,3 @@ with col_graf:
             if fig_sensitivity: st.plotly_chart(fig_sensitivity, use_container_width=True)
         else: st.info("Ejecuta la simulación Monte Carlo para ver el análisis de sensibilidad.")
     else: st.info("Ejecuta la simulación Monte Carlo para ver los resultados aquí.")
-
