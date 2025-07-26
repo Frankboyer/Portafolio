@@ -12,38 +12,18 @@ import os
 import numpy as np
 
 # --- Configuraciones Base de Perfiles de Riesgo ---
-# Estructura detallada: Perfil -> Categoría -> {weight, impacts: {TipoImpacto: Ponderacion}}
 PERFILES_BASE = {
     "Seguridad Patrimonial": {
         "categorias": {
-            "Físico": {"weight": 20, "impacts": {
-                "Humano": 15, "Operacional": 10, "Económico": 5, "Reputacional": 10,
-                "Legal": 5, "Ambiental": 15
-            }},
-            "Humano": {"weight": 15, "impacts": {
-                "Humano": 25, "Operacional": 10, "Reputacional": 15, "Legal": 10
-            }},
-            "Infraestructura": {"weight": 15, "impactos": {
-                "Operacional": 20, "Económico": 15, "Legal": 5
-            }},
-            "Tecnológico": {"weight": 10, "impacts": {
-                "Operacional": 15, "Económico": 10, "Reputacional": 10, "Legal": 15
-            }},
-            "Legal": {"weight": 10, "impactos": {
-                "Legal": 25, "Económico": 15, "Reputacional": 10, "Operacional": 5
-            }},
-            "Financiero": {"weight": 10, "impactos": {
-                "Económico": 25, "Operacional": 10, "Reputacional": 5
-            }},
-            "Reputacional": {"weight": 10, "impactos": {
-                "Reputacional": 25, "Humano": 5, "Económico": 10, "Legal": 5
-            }},
-            "Operativo": {"weight": 5, "impactos": {
-                "Operacional": 20, "Económico": 10, "Humano": 5
-            }},
-            "Ambiental": {"weight": 5, "impactos": {
-                "Ambiental": 25, "Legal": 10, "Reputacional": 10, "Económico": 5
-            }}
+            "Físico": {"weight": 20, "impacts": {"Humano": 15, "Operacional": 10, "Económico": 5, "Reputacional": 10, "Legal": 5, "Ambiental": 15}},
+            "Humano": {"weight": 15, "impacts": {"Humano": 25, "Operacional": 15, "Reputacional": 15, "Legal": 10}},
+            "Infraestructura": {"weight": 15, "impacts": {"Operacional": 20, "Económico": 15, "Legal": 5}},
+            "Tecnológico": {"weight": 10, "impacts": {"Operacional": 15, "Económico": 10, "Reputacional": 10, "Legal": 15}},
+            "Legal": {"weight": 10, "impactos": {"Legal": 25, "Económico": 15, "Reputacional": 10, "Operacional": 5}},
+            "Financiero": {"weight": 10, "impactos": {"Económico": 25, "Operacional": 10, "Reputacional": 5}},
+            "Reputacional": {"weight": 10, "impactos": {"Reputacional": 25, "Humano": 5, "Económico": 10, "Legal": 5}},
+            "Operativo": {"weight": 5, "impactos": {"Operacional": 20, "Económico": 10, "Humano": 5}},
+            "Ambiental": {"weight": 5, "impactos": {"Ambiental": 25, "Legal": 10, "Reputacional": 10, "Económico": 5}}
         },
         "subcategorias": {
             "Físico": ["Robo", "Intrusión", "Sabotaje", "Vandalismo"],
@@ -90,11 +70,9 @@ PERFILES_BASE = {
 }
 
 # --- Tablas Base para el Modelo de Riesgo Determinista ---
-# Reutilizamos tablas existentes y añadimos las necesarias.
-# Asegúrate de que las clasificaciones de Probabilidad y Exposición sean consistentes (ej. 5 niveles).
-tabla_tipo_impacto_global = pd.DataFrame({ # Ponderaciones generales por tipo de impacto
+tabla_tipo_impacto_global = pd.DataFrame({
     'Tipo de Impacto': ['Humano', 'Operacional', 'Económico', 'Reputacional', 'Legal', 'Ambiental', 'Tecnológico', 'Contractual / Legal', 'Organizacional', 'Tiempo', 'Costo', 'Calidad', 'Financiero', 'Externo'],
-    'Ponderación': [25, 20, 30, 15, 10, 5, 10, 4, 7, 15, 15, 10, 3, 3], # Suma > 100 para mostrar flexibilidad
+    'Ponderación': [25, 20, 30, 15, 10, 5, 10, 4, 7, 15, 15, 10, 3, 3],
     'Explicación ASIS': [
         'Afectación a la vida, salud o seguridad de personas.', 'Interrupción o degradación de procesos y funciones del negocio.',
         'Pérdidas financieras directas o indirectas.', 'Daño a la imagen, confianza o credibilidad de la organización.',
@@ -217,13 +195,12 @@ textos = {
         "min_loss_input_label": "Mínima Pérdida Potencial (USD)",
         "max_loss_input_label": "Máxima Pérdida Potencial (USD)",
         "max_theoretical_risk": "Máx. Riesgo Teórico del Perfil",
-        "impact_type_label": "Tipo de Impacto", # Para los sliders de impacto dinámicos
+        "impact_type_label": "Tipo de Impacto",
         "impact_severity_label": "Severidad (0-100)",
-        "impact_weight_label": "Ponderación del Impacto", # Ponderación del impacto específico en la categoría
-        "risk_residual_percent": "Riesgo Residual (%)"
+        "impact_weight_label": "Ponderación del Impacto"
     },
     "en": {
-        # ... (textos en inglés, asegurándose de que todos los nuevos también estén) ...
+        # ... (Traducciones al inglés, asegurándose de incluir todos los nuevos textos) ...
         "risk_impact_numeric": "Impact Severity (0-100)",
         "add_impact_slider": "Add Impact Severity",
         "impact_type_label": "Impact Type",
@@ -232,4 +209,13 @@ textos = {
         "risk_residual_percent": "Residual Risk (%)",
         "max_theoretical_risk": "Max Theoretical Profile Risk"
     }
+}
+
+# --- Mapeos de Clasificación a Valores Numéricos ---
+# Usados internamente en calculations.py
+matriz_probabilidad_vals = {
+    'Muy Baja': 0.1, 'Baja': 0.3, 'Media': 0.5, 'Alta': 0.7, 'Muy Alta': 0.9
+}
+factor_exposicion_vals = {
+    'Muy Baja': 0.1, 'Baja': 0.3, 'Media': 0.6, 'Alta': 0.9, 'Muy Alta': 1.0
 }
