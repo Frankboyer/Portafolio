@@ -132,6 +132,47 @@ criticidad_límites = [
 ]
 
 # --- Diccionario para manejo de múltiples idiomas ---
+# Asegúrate de que HIERARCHY_TRANSLATIONS esté definido aquí
+HIERARCHY_TRANSLATIONS = {
+    "es": {
+        # Perfiles
+        "Seguridad Patrimonial": "Seguridad Patrimonial",
+        "Gestión de Proyectos": "Gestión de Proyectos",
+        # Categorías
+        "Físico": "Físico", "Humano": "Humano", "Infraestructura": "Infraestructura",
+        "Tecnológico": "Tecnológico", "Legal": "Legal", "Financiero": "Financiero",
+        "Reputacional": "Reputacional", "Operativo": "Operativo", "Ambiental": "Ambiental",
+        "Tiempo": "Tiempo", "Costo": "Costo", "Alcance": "Alcance", "Calidad": "Calidad",
+        "Técnico": "Técnico", "Humanos": "Humanos", "Comunicación": "Comunicación",
+        "Organizacional": "Organizacional", "Proveedores": "Proveedores",
+        "Contractual / Legal": "Contractual / Legal", "Externo": "Externo",
+        # Subcategorías (ejemplos)
+        "Robo": "Robo", "Intrusión": "Intrusión", "Sabotaje": "Sabotaje", "Vandalismo": "Vandalismo",
+        "Acceso no autorizado": "Acceso no autorizado", "Error humano": "Error humano", "Amenaza interna": "Amenaza interna",
+        "Retrasos en entregables": "Retrasos en entregables", "Dependencias críticas": "Dependencias críticas",
+        # ... (añadir todas las subcategorías traducidas) ...
+    },
+    "en": {
+        # Perfiles
+        "Seguridad Patrimonial": "Asset Security",
+        "Gestión de Proyectos": "Project Management",
+        # Categorías
+        "Físico": "Physical", "Humano": "Human", "Infraestructura": "Infrastructure",
+        "Tecnológico": "Technological", "Legal": "Legal", "Financiero": "Financial",
+        "Reputacional": "Reputational", "Operativo": "Operational", "Ambiental": "Environmental",
+        "Tiempo": "Time", "Costo": "Cost", "Alcance": "Scope", "Calidad": "Quality",
+        "Técnico": "Technical", "Humanos": "Human Resources", "Comunicación": "Communication",
+        "Organizacional": "Organizational", "Proveedores": "Vendors",
+        "Contractual / Legal": "Contractual / Legal", "Externo": "External",
+        # Subcategorías (ejemplos)
+        "Robo": "Theft", "Intrusión": "Intrusion", "Sabotaje": "Sabotage", "Vandalismo": "Vandalism",
+        "Acceso no autorizado": "Unauthorized Access", "Error humano": "Human Error", "Amenaza interna": "Insider Threat",
+        "Retrasos en entregables": "Delivery Delays", "Dependencias críticas": "Critical Dependencies",
+        # ... (añadir todas las subcategorías traducidas) ...
+    }
+}
+
+# --- Textos generales para la UI ---
 textos = {
     "es": {
         "sidebar_language_toggle": "English", "app_title": "Calculadora de Riesgos Integral",
@@ -209,12 +250,4 @@ textos = {
         "risk_residual_percent": "Residual Risk (%)",
         "max_theoretical_risk": "Max Theoretical Profile Risk"
     }
-}
-
-# --- Mapeos de Clasificación a Valores Numéricos ---
-matriz_probabilidad_vals = {
-    'Muy Baja': 0.1, 'Baja': 0.3, 'Media': 0.5, 'Alta': 0.7, 'Muy Alta': 0.9
-}
-factor_exposicion_vals = {
-    'Muy Baja': 0.1, 'Baja': 0.3, 'Media': 0.6, 'Alta': 0.9, 'Muy Alta': 1.0
 }
