@@ -44,9 +44,9 @@ def format_risk_dataframe(df_risks, idioma="es"):
     styled_df = df_risks.style.applymap(get_color, subset=['Riesgo Residual'])
     return styled_df
 
-# --- Funciones para Gestión de Perfiles ---
-# Estas funciones deben estar definidas o importadas de profile_manager.py
-# Si no las moviste, defínelas aquí. Asumiendo que están en profile_manager.py:
+# --- Funciones para Gestión de Perfiles (deben estar definidas o importadas) ---
+# Las funciones de profile_manager se importan en app.py
+# Si las quieres tener aquí también, descomenta las siguientes líneas y ajústalas:
 # from modules.profile_manager import load_profiles, save_profiles, get_profile_data, delete_profile, update_profile, add_profile
 
 # --- Funciones para obtener Textos Traducidos ---
@@ -60,15 +60,14 @@ def get_text(key, context="app"):
     if context == "app":
         return textos.get(lang, {}).get(key, key)
     elif context == "hierarchy":
-        # Asegúrate de que HIERARCHY_TRANSLATIONS se importe correctamente desde data_config
+        # Acceder a HIERARCHY_TRANSLATIONS importado desde data_config
         try:
-            from modules.data_config import HIERARCHY_TRANSLATIONS
+            from modules.data_config import HIERARCHY_TRANSLATIONS # Asegura la importación
             return HIERARCHY_TRANSLATIONS.get(lang, {}).get(key, HIERARCHY_TRANSLATIONS.get('es', {}).get(key, key))
         except ImportError:
             return key # Fallback si no se importa
     return key # Fallback general
 
-# --- Helper para el Formulario de Impactos Dinámicos ---
 def render_impact_sliders(profile_data, selected_category, current_severities_state, idioma="es"):
     """
     Renderiza los sliders de severidad de impacto basados en la categoría seleccionada
@@ -83,7 +82,6 @@ def render_impact_sliders(profile_data, selected_category, current_severities_st
         st.subheader(get_text("Impactos Detallados", context="app"))
         for tipo_impacto, ponderacion_perfil in impacts_config_for_cat.items():
             current_severidad = current_severities_state.get(tipo_impacto, 50)
-            
             impact_severity = st.slider(
                 f"{get_text('impact_type_label', context='app')}: {tipo_impacto} (Ponderación Perfil: {ponderacion_perfil}%)",
                 min_value=0, max_value=100, value=current_severidad, step=1,
@@ -92,6 +90,6 @@ def render_impact_sliders(profile_data, selected_category, current_severities_st
             )
             impact_inputs_data[tipo_impacto] = impact_severity
     else:
-        pass # No mostrar sliders si no hay impactos dinámicos definidos.
+        pass
 
     return impact_inputs_data
