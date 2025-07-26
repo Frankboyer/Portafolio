@@ -1,7 +1,8 @@
 # modules/utils.py
 """
 Utilidades para la interfaz de usuario, formateo de datos, y gestión de estado.
-Incluye funciones para gestionar perfiles, resetear campos, y obtener textos traducidos.
+Incluye funciones para gestionar perfiles, resetear campos, obtener textos traducidos,
+y renderizar sliders de impacto dinámicos.
 """
 import streamlit as st
 import pandas as pd
@@ -43,11 +44,10 @@ def format_risk_dataframe(df_risks, idioma="es"):
     styled_df = df_risks.style.applymap(get_color, subset=['Riesgo Residual'])
     return styled_df
 
-# --- Funciones para Gestión de Perfiles (deben estar disponibles, ej. importadas de profile_manager) ---
-# Ejemplo de cómo se verían si estuvieran aquí:
-# def load_profiles(): ...
-# def save_profiles(data): ...
-# ... y las otras funciones de profile_manager ...
+# --- Funciones para Gestión de Perfiles ---
+# Estas funciones deben estar definidas o importadas de profile_manager.py
+# Si no las moviste, defínelas aquí. Asumiendo que están en profile_manager.py:
+# from modules.profile_manager import load_profiles, save_profiles, get_profile_data, delete_profile, update_profile, add_profile
 
 # --- Funciones para obtener Textos Traducidos ---
 def get_text(key, context="app"):
@@ -60,12 +60,12 @@ def get_text(key, context="app"):
     if context == "app":
         return textos.get(lang, {}).get(key, key)
     elif context == "hierarchy":
-        # Acceder a HIERARCHY_TRANSLATIONS importado desde data_config
+        # Asegúrate de que HIERARCHY_TRANSLATIONS se importe correctamente desde data_config
         try:
-            from modules.data_config import HIERARCHY_TRANSLATIONS # Asegurarse de la importación correcta
+            from modules.data_config import HIERARCHY_TRANSLATIONS
             return HIERARCHY_TRANSLATIONS.get(lang, {}).get(key, HIERARCHY_TRANSLATIONS.get('es', {}).get(key, key))
         except ImportError:
-            return key # Fallback si no se importa HIERARCHY_TRANSLATIONS
+            return key # Fallback si no se importa
     return key # Fallback general
 
 # --- Helper para el Formulario de Impactos Dinámicos ---
@@ -77,13 +77,12 @@ def render_impact_sliders(profile_data, selected_category, current_severities_st
     impact_inputs_data = {}
     if not profile_data or not selected_category: return impact_inputs_data
 
-    # Obtener los tipos de impacto y sus ponderaciones para la categoría seleccionada
     impacts_config_for_cat = profile_data.get("categorias", {}).get(selected_category, {}).get("impacts", {})
     
     if impacts_config_for_cat:
         st.subheader(get_text("Impactos Detallados", context="app"))
         for tipo_impacto, ponderacion_perfil in impacts_config_for_cat.items():
-            current_severidad = current_severities_state.get(tipo_impacto, 50) # Valor por defecto 50
+            current_severidad = current_severities_state.get(tipo_impacto, 50)
             
             impact_severity = st.slider(
                 f"{get_text('impact_type_label', context='app')}: {tipo_impacto} (Ponderación Perfil: {ponderacion_perfil}%)",
