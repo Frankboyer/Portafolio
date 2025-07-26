@@ -19,11 +19,11 @@ import os
 # Asegúrate de que las rutas de importación sean correctas según tu estructura de archivos
 from modules.data_config import (tabla_tipo_impacto_global, matriz_probabilidad, matriz_impacto,
                                   factor_exposicion, factor_probabilidad, efectividad_controles,
-                                  criticidad_límites, textos, PERFILES_BASE, HIERARCHY_TRANSLATIONS) # Importar HIERARCHY_TRANSLATIONS
+                                  criticidad_límites, textos, PERFILES_BASE, HIERARCHY_TRANSLATIONS)
 from modules.calculations import clasificar_criticidad, calcular_criticidad, simular_montecarlo, calcular_max_theoretical_risk
 from modules.plotting import create_heatmap, create_pareto_chart, plot_montecarlo_histogram, create_sensitivity_plot
-from modules.utils import reset_form_fields, format_risk_dataframe # Utilidades
-from modules.profile_manager import load_profiles, save_profiles, get_profile_data, delete_profile, update_profile, add_profile # Gestor de perfiles
+from modules.utils import reset_form_fields, format_risk_dataframe, get_text, render_impact_sliders # Importar todas las utilidades
+from modules.profile_manager import load_profiles, save_profiles, get_profile_data, delete_profile, update_profile, add_profile
 
 # --- Configuración de la página ---
 st.set_page_config(layout="wide", page_title="Calculadora de Riesgos Integral", icon="🛡️")
@@ -57,14 +57,14 @@ if 'riesgos' not in st.session_state:
         "Probabilidad", "Exposición", "Impacto Numérico General",
         "Efectividad del Control (%)", "Amenaza Deliberada",
         "Min Loss USD", "Max Loss USD",
-        "Perfil", "Categoria", "Subcategoria", # Información del perfil
-        "Impactos Detallados", # Guardar el diccionario de {TipoImpacto: Severidad}
+        "Perfil", "Categoria", "Subcategoria",
+        "Impactos Detallados",
         "Amenaza Inherente", "Amenaza Residual", "Amenaza Residual Ajustada",
         "Riesgo Residual", "Clasificación", "Color"
     ])
 if 'current_edit_index' not in st.session_state: st.session_state.current_edit_index = -1
 
-# Valores por defecto para el formulario de riesgo
+# Valores por defecto
 if 'default_type_impact' not in st.session_state: st.session_state['default_type_impact'] = tabla_tipo_impacto_global['Tipo de Impacto'].iloc[0]
 if 'default_probabilidad' not in st.session_state: st.session_state['default_probabilidad'] = factor_probabilidad['Clasificacion'].iloc[0]
 if 'default_exposicion' not in st.session_state: st.session_state['default_exposicion'] = factor_exposicion['Clasificacion'].iloc[0]
@@ -78,13 +78,6 @@ if 'perfiles_usuario' not in st.session_state: st.session_state.perfiles_usuario
 if 'perfil_seleccionado_user' not in st.session_state: st.session_state.perfil_seleccionado_user = list(st.session_state.perfiles_usuario.keys())[0] if st.session_state.perfiles_usuario else ""
 if 'current_editing_profile' not in st.session_state: st.session_state.current_editing_profile = None
 if 'profile_categories_data' not in st.session_state: st.session_state.profile_categories_data = {}
-if 'risk_impact_severities' not in st.session_state: st.session_state['risk_impact_severities'] = {} # Para guardar severidades de impacto dinámicas
-
-# --- Funciones Auxiliares ---
-# Definir get_text aquí, asumiendo que los diccionarios de texto y HIERARCHY_TRANSLATIONS están en data_config
-# Si están en data_config, la importación debería ser:
-# from modules.data_config import textos, HIERARCHY_TRANSLATIONS
-# Si no, definirlos aquí.
 
 # --- Sidebar ---
 with st.sidebar:
@@ -127,9 +120,6 @@ with st.sidebar:
 
     st.markdown("---")
     # Formulario para crear/modificar perfiles
-    if 'current_editing_profile' not in st.session_state: st.session_state.current_editing_profile = None
-    if 'profile_categories_data' not in st.session_state: st.session_state.profile_categories_data = {}
-
     with st.form("profile_form", clear_on_submit=False):
         profile_name_input = st.text_input(get_text("profile_name_input", context="app"), key="profile_name_input")
         
@@ -280,7 +270,6 @@ with col_form:
             )
 
             # Slider para el Impacto Numérico General (0-100)
-            # Este se usará si no hay impactos dinámicos definidos para la categoría
             impacto_numerico_slider = st.slider(get_text("risk_impact_numeric", context="app"), min_value=0, max_value=100, value=st.session_state.get('impacto_numerico_slider', 50), step=1, help="Severidad general del impacto.", key="impacto_numerico_slider")
             
             # --- Múltiples Severidades de Impacto Dinámicas ---
@@ -293,7 +282,7 @@ with col_form:
                 else:
                     st.info(f"No hay tipos de impacto definidos para la categoría '{selected_category_for_input}'. Se usará el slider general.")
             else: # Si no hay perfil o categoría seleccionada
-                 impact_inputs_data = {"General": st.session_state.get('impacto_numerico_slider', 50)} # Usar slider general
+                 impact_inputs_data = {"General": st.session_state.get('impacto_numerico_slider', 50)}
 
             control_effectiveness_slider = st.slider(get_text("risk_control_effectiveness", context="app"), min_value=0, max_value=100, value=st.session_state.get('control_effectiveness_slider', 50), step=1, help="Porcentaje de efectividad de los controles existentes para mitigar el riesgo.", key="control_effectiveness_slider")
             deliberate_threat_checkbox = st.checkbox(get_text("risk_deliberate_threat", context="app"), value=st.session_state.get('deliberate_threat_checkbox', False), key="deliberate_threat_checkbox")
@@ -308,22 +297,15 @@ with col_form:
                 if not risk_name: st.error(get_text("error_risk_name_empty", context="app"))
                 elif not valid_loss_range: st.error("Por favor, verifica el rango de pérdidas (Min Loss USD <= Max Loss USD).")
                 else:
-                    # Obtener factores de Probabilidad y Exposición
                     probabilidad_factor = matriz_probabilidad_vals.get(selected_probabilidad_clasificacion, 0.5)
                     exposicion_factor = factor_exposicion_vals.get(selected_exposicion_clasificacion, 0.6)
 
                     amenaza_deliberada_factor_val = 1 if deliberate_threat_checkbox else 0
                     
                     # Preparar el diccionario de severidades de impacto para el cálculo
-                    severidades_impacto_para_calculo = {}
-                    if current_profile_data and selected_category_for_input:
-                        impacts_config_for_cat = current_profile_data.get("categorias", {}).get(selected_category_for_input, {}).get("impacts", {})
-                        if impacts_config_for_cat:
-                             severidades_impacto_para_calculo = st.session_state.get('risk_impact_severities', {})
-                        else: # Si no hay impactos dinámicos definidos, usar el slider general
-                             severidades_impacto_para_calculo = {"General": impacto_numerico_slider}
-                    else: # Si no hay perfil o categoría seleccionada
-                         severidades_impacto_para_calculo = {"General": impacto_numerico_slider}
+                    severidades_impacto_para_calculo = st.session_state.get('risk_impact_severities', {})
+                    if not severidades_impacto_para_calculo: # Si está vacío, usar el slider general
+                        severidades_impacto_para_calculo = {"General": impacto_numerico_slider}
 
                     # Calcular el Riesgo Residual Determinista
                     amenaza_inherente_det, amenaza_residual_det, amenaza_residual_ajustada_det, riesgo_residual_det = \
@@ -416,19 +398,22 @@ with col_form:
                     st.session_state.risk_name_input = row['Nombre del Riesgo']
                     st.session_state.risk_description_input = row['Descripción']
                     st.session_state.selected_type_impact = row['Tipo de Impacto']
-                    st.session_state.selected_probabilidad = row['Probabilidad'] # Factor numérico, se usa para buscar clasificación
-                    st.session_state.selected_exposicion = row['Exposición']     # Factor numérico, se usa para buscar clasificación
-                    st.session_state.impacto_numerico_slider = row['Impacto Numérico'] # Slider general
+                    # Configurar selectores de Probabilidad y Exposición
+                    st.session_state.selected_probabilidad = row['Probabilidad'] # Factor numérico -> búsqueda de clasificación
+                    st.session_state.selected_exposicion = row['Exposición']     # Factor numérico -> búsqueda de clasificación
+                    st.session_state.impacto_numerico_slider = row['Impacto Numérico']
                     st.session_state.control_effectiveness_slider = row['Efectividad del Control (%)']
                     st.session_state.deliberate_threat_checkbox = (row['Amenaza Deliberada'] == 'Sí')
                     st.session_state.min_loss_input = row.get('Min Loss USD', 0.0)
                     st.session_state.max_loss_input = row.get('Max Loss USD', 0.0)
+                    
                     # Cargar perfil, categoría, subcategoría
                     st.session_state.risk_profile_selector = row.get('Perfil', list(st.session_state.perfiles_usuario.keys())[0])
                     st.session_state.risk_category_selector = row.get('Categoria', '')
                     st.session_state.risk_subcategory_selector = row.get('Subcategoria', '')
                     # Cargar las severidades de impacto dinámicas guardadas
                     st.session_state['risk_impact_severities'] = row.get('Impactos Detallados', {})
+                    
                     st.rerun()
             with col_btns[1]:
                 if st.button(get_text("delete_risk", context="app"), key=delete_button_key):
@@ -587,3 +572,4 @@ with col_graf:
             if fig_sensitivity: st.plotly_chart(fig_sensitivity, use_container_width=True)
         else: st.info("Ejecuta la simulación Monte Carlo para ver el análisis de sensibilidad.")
     else: st.info("Ejecuta la simulación Monte Carlo para ver los resultados aquí.")
+
