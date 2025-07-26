@@ -11,10 +11,10 @@ import json
 from typing import Dict, List, Tuple, Any
 
 # --- Importaciones ---
-# Asegúrate de que las rutas de importación sean correctas según tu estructura
 from modules.data_config import (tabla_tipo_impacto_global, matriz_probabilidad, matriz_impacto,
                                   factor_exposicion, factor_probabilidad, efectividad_controles,
-                                  criticidad_límites, textos, PERFILES_BASE) # Importar todos los datos necesarios
+                                  criticidad_límites, textos, PERFILES_BASE) # Importar datos necesarios
+# HIERARCHY_TRANSLATIONS no se usa directamente aquí, se maneja en app/utils
 
 # --- Mapeos ---
 matriz_probabilidad_vals = {
@@ -57,21 +57,16 @@ def calcular_criticidad(probabilidad_clasificacion, exposicion_clasificacion, am
 
         # Calcular el Impacto Total Ponderado
         impacto_total_ponderado = 0.0
-        # Usamos las ponderaciones globales de tabla_tipo_impacto_global
-        # Si las ponderaciones fueran dinámicas por perfil/categoría, esta lógica debería cambiar.
         ponderaciones_globales = dict(zip(tabla_tipo_impacto_global['Tipo de Impacto'], tabla_tipo_impacto_global['Ponderación']))
 
         for tipo_impacto, severidad_valor in severidades_impacto_dict.items():
-            # Si el tipo de impacto no está en las ponderaciones globales, se puede asignar un valor por defecto o ignorar
             ponderacion_global = ponderaciones_globales.get(tipo_impacto, 0)
-            
             severidad_norm = float(severidad_valor) / 100.0
             ponderacion_norm = float(ponderacion_global) / 100.0
-            
             impacto_ponderado_i = severidad_norm * ponderacion_norm
             impacto_total_ponderado += impacto_ponderado_i
         
-        # Normalizar el impacto total ponderado si es necesario (asumimos que la suma de ponderaciones globales es 100)
+        # Normalizar el impacto total ponderado si es necesario
 
         amenaza_inherente = probabilidad * exposicion
         amenaza_residual = amenaza_inherente * (1 - efectividad_factor)
@@ -91,17 +86,6 @@ def calcular_max_theoretical_risk(probabilidad_clasificacion, exposicion_clasifi
     Calcula el máximo riesgo residual teórico posible para una combinación dada de
     Probabilidad, Exposición, Efectividad (mínima), y los impactos con sus ponderaciones
     máximas definidas para la categoría del perfil.
-
-    Args:
-        probabilidad_clasificacion (str): Clasificación de probabilidad.
-        exposicion_clasificacion (str): Clasificación de exposición.
-        amenaza_deliberada_factor (int): 1 si es deliberada, 0 si no.
-        efectividad_control_max_risk_pct (float): Valor de efectividad (0-100) para el peor caso (0% efectividad).
-        perfil_data (dict): Datos del perfil seleccionado.
-        categoria_seleccionada (str): La categoría seleccionada dentro del perfil.
-
-    Returns:
-        float: El máximo riesgo residual teórico posible (0-1).
     """
     try:
         probabilidad = matriz_probabilidad_vals.get(probabilidad_clasificacion, 0.5)
@@ -110,7 +94,6 @@ def calcular_max_theoretical_risk(probabilidad_clasificacion, exposicion_clasifi
         amenaza_deliberada_factor = float(amenaza_deliberada_factor)
         efectividad_factor_min = 0.0 # Para máximo riesgo, se asume mínima efectividad (0%)
 
-        # Obtener la máxima severidad (100) para todos los tipos de impacto en la categoría
         impactos_config = perfil_data.get("categorias", {}).get(categoria_seleccionada, {}).get("impacts", {})
         severidades_maximas = {}
         if "impacts" in impactos_config:
@@ -127,12 +110,10 @@ def calcular_max_theoretical_risk(probabilidad_clasificacion, exposicion_clasifi
             impacto_ponderado_i = severidad_norm * ponderacion_norm
             max_impacto_total_ponderado += impacto_ponderado_i
         
-        # Máxima amenaza inherente (usando la clasificación seleccionada)
         max_prob = matriz_probabilidad_vals.get(probabilidad_clasificacion, 0.5)
         max_exp = factor_exposicion_vals.get(exposicion_clasificacion, 0.6)
         max_amenaza_inherente = max_prob * max_exp
 
-        # Máxima amenaza residual ajustada
         max_amenaza_residual = max_amenaza_inherente * (1 - efectividad_factor_min)
         max_amenaza_residual_ajustada = max_amenaza_residual * (1 + amenaza_deliberada_factor)
 
@@ -162,7 +143,6 @@ def simular_montecarlo(riesgos_para_simular, valor_economico_global, iteraciones
         sigma_comun_factor = 0.1 # Sigma para factores (0-1)
 
         for idx_risk, riesgo in enumerate(riesgos_para_simular):
-            # Parámetros base del riesgo (Factores 0-1)
             probabilidad_base_factor = float(riesgo['Probabilidad'])
             exposicion_base_factor = float(riesgo['Exposición'])
             efectividad_base_pct = riesgo['Efectividad del Control (%)']
@@ -186,7 +166,6 @@ def simular_montecarlo(riesgos_para_simular, valor_economico_global, iteraciones
             loss_range_mid = (min_loss_usd + max_loss_usd) / 2
             loss_range_std = (max_loss_usd - min_loss_usd) / 4 if max_loss_usd > min_loss_usd else 0
 
-            # Arrays para resultados de este riesgo
             riesgo_residual_sim_risk = np.zeros(iteraciones)
             perdidas_usd_sim_risk = np.zeros(iteraciones)
             sim_data_risk_dict = {}
