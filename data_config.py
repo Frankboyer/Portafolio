@@ -17,7 +17,7 @@ PERFILES_BASE = {
         "categorias": {
             "Físico": {"weight": 20, "impacts": {"Humano": 15, "Operacional": 10, "Económico": 5, "Reputacional": 10, "Legal": 5, "Ambiental": 15}},
             "Humano": {"weight": 15, "impacts": {"Humano": 25, "Operacional": 10, "Reputacional": 15, "Legal": 10}},
-            "Infraestructura": {"weight": 15, "impacts": {"Operacional": 20, "Económico": 15, "Legal": 5}},
+            "Infraestructura": {"weight": 15, "impactos": {"Operacional": 20, "Económico": 15, "Legal": 5}},
             "Tecnológico": {"weight": 10, "impactos": {"Operacional": 15, "Económico": 10, "Reputacional": 10, "Legal": 15}},
             "Legal": {"weight": 10, "impactos": {"Legal": 25, "Económico": 15, "Reputacional": 10, "Operacional": 5}},
             "Financiero": {"weight": 10, "impactos": {"Económico": 25, "Operacional": 10, "Reputacional": 5}},
@@ -211,8 +211,7 @@ textos = {
     }
 }
 
-# --- Mapeos de Clasificación a Valores Numéricos (Factores 0-1) ---
-# Usados internamente en calculations.py
+# --- Mapeos de Clasificación a Valores Numéricos ---
 matriz_probabilidad_vals = {
     'Muy Baja': 0.1, 'Baja': 0.3, 'Media': 0.5, 'Alta': 0.7, 'Muy Alta': 0.9
 }
