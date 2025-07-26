@@ -1,4 +1,5 @@
-# Riskapp.py
+
+    # Riskapp.py
 """
 Aplicación principal de Streamlit para la Calculadora de Riesgos Integral.
 Integra gestión de perfiles, entrada de riesgos con múltiples impactos dinámicos,
@@ -17,9 +18,11 @@ import os
 
 # --- Importaciones de Módulos ---
 # Asegúrate de que las rutas de importación sean correctas según tu estructura de archivos
+# Si todos los archivos están en el mismo directorio, los imports serían directos.
+# Como están en modules/, la estructura correcta es 'from modules.nombre_modulo import ...'
 from modules.data_config import (tabla_tipo_impacto_global, matriz_probabilidad, matriz_impacto,
                                   factor_exposicion, factor_probabilidad, efectividad_controles,
-                                  criticidad_límites, textos, PERFILES_BASE, HIERARCHY_TRANSLATIONS)
+                                  criticidad_límites, textos, PERFILES_BASE) # <-- HIERARCHY_TRANSLATIONS NO SE IMPORTA AQUÍ
 from modules.calculations import clasificar_criticidad, calcular_criticidad, simular_montecarlo, calcular_max_theoretical_risk
 from modules.plotting import create_heatmap, create_pareto_chart, plot_montecarlo_histogram, create_sensitivity_plot
 from modules.utils import reset_form_fields, format_risk_dataframe, get_text, render_impact_sliders # Utilidades
@@ -248,7 +251,6 @@ with col_form:
             st.session_state.risk_subcategory_selector = ""
         selected_subcategory_for_input = st.selectbox(get_text("Subcategoría"), subcategories_for_input, key="risk_subcategory_selector")
         
-        # Ponderación de la categoría del perfil (para referencia)
         # category_weight_from_profile = current_profile_data["categorias"].get(selected_category_for_input, {}).get('weight', 0)
 
         with st.form("risk_form", clear_on_submit=False):
@@ -298,7 +300,6 @@ with col_form:
                 if not risk_name: st.error(get_text("error_risk_name_empty", context="app"))
                 elif not valid_loss_range: st.error("Por favor, verifica el rango de pérdidas (Min Loss USD <= Max Loss USD).")
                 else:
-                    # Obtener factores de Probabilidad y Exposición
                     probabilidad_factor = matriz_probabilidad_vals.get(selected_probabilidad_clasificacion, 0.5)
                     exposicion_factor = factor_exposicion_vals.get(selected_exposicion_clasificacion, 0.6)
 
@@ -316,7 +317,7 @@ with col_form:
                             selected_exposicion_clasificacion,
                             amenaza_deliberada_factor_val,
                             control_effectiveness_slider,
-                            severidades_impacto_para_calculo # Pasar el diccionario de severidades
+                            severidades_impacto_para_calculo
                         )
                     
                     clasificacion_det, color_det = clasificar_criticidad(riesgo_residual_det, st.session_state.idioma)
@@ -360,7 +361,7 @@ with col_form:
 
     st.markdown("---")
     st.header(get_text("deterministic_results_title", context="app"))
-    if 'riesgo_residual_det' in locals():
+    if 'riesgo_residual_det' in locals(): # Verifica si los cálculos se realizaron en la última ejecución del formulario
         col1_det, col2_det = st.columns(2)
         with col1_det:
             st.markdown(f"<div class='metric-box'><h3>{get_text('inherent_threat', context='app')}</h3><p>{amenaza_inherente_det:.2f}</p></div>", unsafe_allow_html=True)
@@ -400,8 +401,8 @@ with col_form:
                     st.session_state.risk_name_input = row['Nombre del Riesgo']
                     st.session_state.risk_description_input = row['Descripción']
                     st.session_state.selected_type_impact = row['Tipo de Impacto']
-                    st.session_state.selected_probabilidad = row['Probabilidad'] # Factor numérico, se usa para buscar clasificación
-                    st.session_state.selected_exposicion = row['Exposición']     # Factor numérico, se usa para buscar clasificación
+                    st.session_state.selected_probabilidad = row['Probabilidad'] # Factor numérico
+                    st.session_state.selected_exposicion = row['Exposición']     # Factor numérico
                     st.session_state.impacto_numerico_slider = row['Impacto Numérico']
                     st.session_state.control_effectiveness_slider = row['Efectividad del Control (%)']
                     st.session_state.deliberate_threat_checkbox = (row['Amenaza Deliberada'] == 'Sí')
