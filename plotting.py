@@ -10,11 +10,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.graph_objects as go
 import plotly.express as px
-import json
 
 # --- Importaciones ---
 from modules.data_config import (criticidad_límites, matriz_probabilidad, matriz_impacto,
-                                  tabla_tipo_impacto_global) # Importar datos para gráficos
+                                  tabla_tipo_impacto_global)
 from modules.utils import get_text # Para traducciones en títulos/labels
 
 # --- Funciones de Creación de Gráficos ---
