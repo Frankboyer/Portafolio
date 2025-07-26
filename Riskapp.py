@@ -1,4 +1,4 @@
-# app.py
+# Riskapp.py
 """
 Aplicación principal de Streamlit para la Calculadora de Riesgos Integral.
 Integra gestión de perfiles, entrada de riesgos con múltiples impactos dinámicos,
@@ -248,6 +248,7 @@ with col_form:
             st.session_state.risk_subcategory_selector = ""
         selected_subcategory_for_input = st.selectbox(get_text("Subcategoría"), subcategories_for_input, key="risk_subcategory_selector")
         
+        # Ponderación de la categoría del perfil (para referencia)
         category_weight_from_profile = current_profile_data["categorias"].get(selected_category_for_input, {}).get('weight', 0)
 
         with st.form("risk_form", clear_on_submit=False):
@@ -269,7 +270,6 @@ with col_form:
                 key="selected_exposicion"
             )
 
-            # Slider para el Impacto Numérico General (0-100)
             impacto_numerico_slider = st.slider(get_text("risk_impact_numeric", context="app"), min_value=0, max_value=100, value=st.session_state.get('impacto_numerico_slider', 50), step=1, help="Severidad general del impacto.", key="impacto_numerico_slider")
             
             # --- Múltiples Severidades de Impacto Dinámicas ---
@@ -278,11 +278,12 @@ with col_form:
                 impacts_config_for_cat = current_profile_data.get("categorias", {}).get(selected_category_for_input, {}).get("impacts", {})
                 
                 if impacts_config_for_cat:
+                    # Renderiza los sliders dinámicos y obtiene sus valores
                     impact_inputs_data = render_impact_sliders(current_profile_data, selected_category_for_input, st.session_state.get('risk_impact_severities', {}), st.session_state.idioma)
                 else:
                     st.info(f"No hay tipos de impacto definidos para la categoría '{selected_category_for_input}'. Se usará el slider general.")
             else: # Si no hay perfil o categoría seleccionada
-                 impact_inputs_data = {"General": st.session_state.get('impacto_numerico_slider', 50)}
+                 impact_inputs_data = {"General": st.session_state.get('impacto_numerico_slider', 50)} # Usar el general como fallback
 
             control_effectiveness_slider = st.slider(get_text("risk_control_effectiveness", context="app"), min_value=0, max_value=100, value=st.session_state.get('control_effectiveness_slider', 50), step=1, help="Porcentaje de efectividad de los controles existentes para mitigar el riesgo.", key="control_effectiveness_slider")
             deliberate_threat_checkbox = st.checkbox(get_text("risk_deliberate_threat", context="app"), value=st.session_state.get('deliberate_threat_checkbox', False), key="deliberate_threat_checkbox")
@@ -398,8 +399,8 @@ with col_form:
                     st.session_state.risk_name_input = row['Nombre del Riesgo']
                     st.session_state.risk_description_input = row['Descripción']
                     st.session_state.selected_type_impact = row['Tipo de Impacto']
-                    st.session_state.selected_probabilidad = row['Probabilidad'] # Factor numérico
-                    st.session_state.selected_exposicion = row['Exposición']     # Factor numérico
+                    st.session_state.selected_probabilidad = row['Probabilidad'] # Factor numérico -> búsqueda de clasificación
+                    st.session_state.selected_exposicion = row['Exposición']     # Factor numérico -> búsqueda de clasificación
                     st.session_state.impacto_numerico_slider = row['Impacto Numérico']
                     st.session_state.control_effectiveness_slider = row['Efectividad del Control (%)']
                     st.session_state.deliberate_threat_checkbox = (row['Amenaza Deliberada'] == 'Sí')
